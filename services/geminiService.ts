@@ -1,68 +1,93 @@
+
 import axios from 'axios';
-import { Customer, AiStrategy, GradeRule, CommunicationLog } from '../types';
+import { Customer, AiStrategy, CommunicationLog, GradeRule } from '../types';
 
 /**
  * Enterprise AI Bridge
- * Responsibility: Secure delegation of reasoning tasks to the Node Kernel.
+ * Interfaces with the secure Authority Kernel at 139.59.10.70
  */
 
 export const generateEnterpriseStrategy = async (customer: Customer, callLogs: CommunicationLog[] = []): Promise<AiStrategy | null> => {
   try {
-    const response = await axios.post('/api/ai/analyze-risk', {
-      context: {
-        customer: {
-          id: customer.id,
-          name: customer.name,
-          balance: customer.currentBalance,
-          gold_balance: customer.currentGoldBalance,
-          grade: customer.grade,
-          last_tx: customer.lastTxDate
-        },
-        interactions: callLogs.filter(l => l.customerId === customer.id).slice(0, 5)
-      }
+    const response = await axios.post('/api/kernel/reason', {
+      customerData: {
+        name: customer.name,
+        balance: customer.currentBalance,
+        gold: customer.currentGoldBalance,
+        grade: customer.grade
+      },
+      interactionLogs: callLogs.filter(l => l.customerId === customer.id).slice(0, 5)
     });
     
     const data = response.data;
     return {
-      riskScore: data.recovery_probability * 100 || 0,
-      riskLevel: data.risk_level || 'UNKNOWN',
-      analysis: data.justification || "Audit complete.",
-      recommendedAction: data.recommended_action || "Manual Review",
-      drafts: [{ tone: 'Professional', text: "Protocol initiated." }]
+      riskScore: (data.recovery_odds || 0.5) * 100,
+      riskLevel: data.risk_grade || 'UNKNOWN',
+      analysis: data.analysis || "Audit complete.",
+      recommendedAction: data.next_step || "Manual Review",
+      drafts: [{ tone: 'Professional', text: "Protocol synchronized with kernel." }]
     };
   } catch (error) {
-    console.error("AI Node Failure:", error);
+    console.error("Kernel AI Failure:", error);
     return null;
   }
 };
 
-export const generateSmartTemplate = async (promptText: string, category: string): Promise<{content: string, suggestedButtons: string[], suggestedName: string}> => {
-   try {
-      const response = await axios.post('/api/ai/template/smart', { prompt: promptText, category });
-      return response.data;
-   } catch (e) {
-      return { 
-        content: "Drafting protocol offline.", 
-        suggestedButtons: ["Retry"], 
-        suggestedName: `fallback_${Date.now()}` 
-      };
-   }
+export const getKernelStatus = async () => {
+  try {
+    const response = await axios.get('/api/kernel/status');
+    return response.data;
+  } catch (e) {
+    return { nodeId: "OFFLINE", version: "N/A" };
+  }
 };
 
-export const optimizeTemplateContent = async (currentContent: string, context: string): Promise<string> => {
-   try {
-      const response = await axios.post('/api/ai/template/optimize', { content: currentContent, context });
-      return response.data.content;
-   } catch (e) {
-      return currentContent;
-   }
+export const getLiveLogs = async () => {
+  try {
+    const response = await axios.get('/api/kernel/logs');
+    return response.data;
+  } catch (e) {
+    return ["KERNEL_DISCONNECTED"];
+  }
 };
 
-export const generateOptimizedGradeRules = async (customerStats: any): Promise<GradeRule[] | null> => {
-   try {
-      const response = await axios.post('/api/ai/rules/optimize', { stats: customerStats });
-      return response.data;
-   } catch (e) {
-      return null;
-   }
+// --- Added Exports to fix missing members used in views ---
+
+/**
+ * Optimize grade rules using Gemini AI based on portfolio statistics.
+ */
+export const generateOptimizedGradeRules = async (stats: any): Promise<GradeRule[] | null> => {
+  try {
+    const response = await axios.post('/api/kernel/optimize-grades', { stats });
+    return response.data;
+  } catch (error) {
+    console.error("Grade Optimization Failure:", error);
+    return null;
+  }
+};
+
+/**
+ * Generate a new communication template based on user intent.
+ */
+export const generateSmartTemplate = async (intent: string, category: string): Promise<{ content: string; suggestedButtons: string[]; suggestedName?: string }> => {
+  try {
+    const response = await axios.post('/api/kernel/smart-template', { intent, category });
+    return response.data;
+  } catch (error) {
+    console.error("Smart Template Failure:", error);
+    return { content: `Error generating template for ${intent}`, suggestedButtons: [] };
+  }
+};
+
+/**
+ * Optimize existing template content for professional tone.
+ */
+export const optimizeTemplateContent = async (content: string, context: string): Promise<string> => {
+  try {
+    const response = await axios.post('/api/kernel/optimize-content', { content, context });
+    return response.data.optimizedContent || content;
+  } catch (error) {
+    console.error("Content Optimization Failure:", error);
+    return content;
+  }
 };
