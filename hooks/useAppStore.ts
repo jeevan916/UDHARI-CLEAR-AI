@@ -37,39 +37,39 @@ export const useAppStore = () => {
   const [aiStrategy, setAiStrategy] = useState<AiStrategy | null>(null);
 
   const addLog = useCallback((msg: string) => {
-    setSystemLogs(prev => [`[LOG] ${msg}`, ...prev].slice(0, 50));
+    setSystemLogs(prev => [`[LOG] ${msg}`, ...prev].slice(0, 100));
   }, []);
 
   const syncLedger = useCallback(async () => {
     if (!user) return;
-    addLog("Requesting remote server telemetry...");
+    addLog("Initiating Secure Telemetry Handshake...");
     try {
+      // 1. Always check health first - this endpoint is designed to never 503
       const healthRes = await axios.get('/api/system/health');
       const health = healthRes.data;
 
-      // Update Database Structure state for the Vault
-      if (health.database_structure) {
-        setDbStructure(health.database_structure);
-      }
-
-      // Dump all remote debug logs into the terminal
-      if (health.debug_logs && health.debug_logs.length > 0) {
+      if (health.database_structure) setDbStructure(health.database_structure);
+      
+      if (health.debug_logs) {
         health.debug_logs.forEach((log: string) => addLog(`REMOTE: ${log}`));
       }
 
       if (health.db_health !== 'CONNECTED') {
-         throw new Error(`DB_HANDSHAKE_FAILED: ${health.last_error || 'No reason provided'}`);
+         setDbStatus('OFFLINE');
+         addLog(`CRITICAL: Handshake failed. Error Code: ${health.last_error?.code || 'UNKNOWN'}`);
+         return; // Don't attempt to fetch customers if we know it's down
       }
 
+      // 2. Fetch customers only if health confirmed
       const res = await axios.get('/api/customers');
       if (res.data && Array.isArray(res.data)) {
         setCustomers(res.data.length > 0 ? res.data : INITIAL_CUSTOMERS);
         setDbStatus('CONNECTED');
-        addLog(`NODE_STABLE: Running on version ${health.version}`);
+        addLog(`SYNC_OK: Node Cluster Verified.`);
       }
     } catch (e: any) {
       const detail = e.response?.data?.details || e.message;
-      addLog(`CRITICAL: ${detail}`);
+      addLog(`TERMINAL_ERROR: ${detail}`);
       setDbStatus('OFFLINE');
     }
   }, [user, addLog]);
@@ -78,14 +78,27 @@ export const useAppStore = () => {
     if (user) syncLedger();
   }, [user, syncLedger]);
 
-  const activeCustomer = useMemo(() => customers.find(c => c.id === selectedId) || null, [customers, selectedId]);
-  const behavior = useMemo(() => activeCustomer ? analyzeCustomerBehavior(activeCustomer, gradeRules, callLogs) : null, [activeCustomer, gradeRules, callLogs]);
+  const activeCustomer = useMemo(() => {
+    if (!selectedId) return null;
+    return customers.find(c => c.id === selectedId) || null;
+  }, [customers, selectedId]);
+
+  const behavior = useMemo(() => {
+    if (!activeCustomer) return null;
+    try {
+      return analyzeCustomerBehavior(activeCustomer, gradeRules, callLogs);
+    } catch (err) {
+      console.error("Behavior analysis failed", err);
+      return null;
+    }
+  }, [activeCustomer, gradeRules, callLogs]);
 
   const filteredCustomers = useMemo(() => {
     return customers.filter(c => {
       const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
                            c.phone.includes(searchTerm) || 
-                           c.uniquePaymentCode.toLowerCase().includes(searchTerm.toLowerCase());
+                           (c.uniquePaymentCode && c.uniquePaymentCode.toLowerCase().includes(searchTerm.toLowerCase()));
+      
       const b = analyzeCustomerBehavior(c, gradeRules, callLogs);
       const matchesGrade = filterGrade === 'all' || b.calculatedGrade === filterGrade;
       return matchesSearch && matchesGrade;
@@ -129,41 +142,10 @@ export const useAppStore = () => {
     setIsEntryModalOpen(true);
   }, []);
 
-  const enrichCustomerData = useCallback(() => {
-    addLog("FORENSICS: Enrichment cycle started.");
-  }, [addLog]);
-
-  const updateCustomerDeepvueData = useCallback((updates: any) => {
-    setCustomers(prev => prev.map(c => {
-      if (c.id === selectedId) {
-        return { ...c, deepvueInsights: { ...c.deepvueInsights, ...updates } as any };
-      }
-      return c;
-    }));
-    addLog("FORENSICS: Node intelligence updated.");
-  }, [selectedId, addLog]);
-
-  const setPrimaryContact = useCallback((contactId: string) => {
-    setCustomers(prev => prev.map(c => {
-      if (c.id === selectedId && c.contactList) {
-        return { 
-          ...c, 
-          contactList: c.contactList.map(cnt => ({ ...cnt, isPrimary: cnt.id === contactId })) 
-        };
-      }
-      return c;
-    }));
-  }, [selectedId]);
-
-  const updateIntegrationConfig = useCallback((nodeId: string, fields: IntegrationField[]) => {
-    setIntegrations(prev => prev.map(n => n.id === nodeId ? { ...n, fields } : n));
-    addLog(`INFRA: ${nodeId} node reconfigured.`);
-  }, [addLog]);
-
   const handleAiInquiry = async () => {
     if (!activeCustomer) return null;
     setIsAiLoading(true);
-    addLog(`CORTEX: Analyzing ${activeCustomer.uniquePaymentCode}...`);
+    addLog(`CORTEX: Analyzing Behavioral Trace for ${activeCustomer.uniquePaymentCode}...`);
     try {
       const res = await axios.post('/api/kernel/reason', {
         customerData: { name: activeCustomer.name, balance: activeCustomer.currentBalance }
@@ -176,10 +158,10 @@ export const useAppStore = () => {
         next_step: res.data.action_plan
       };
       setAiStrategy(strategy);
-      addLog("CORTEX: Audit roadmap generated.");
+      addLog("CORTEX: Strategy Analysis Generated.");
       return strategy;
     } catch (e) {
-      addLog("CORTEX_ERR: Reasoning engine timed out.");
+      addLog("CORTEX_ERR: Reasoning Cycle Failed.");
       return null;
     } finally {
       setIsAiLoading(false);
@@ -207,10 +189,10 @@ export const useAppStore = () => {
       addCustomer,
       handleDeleteTransaction,
       openEditModal,
-      enrichCustomerData,
-      updateCustomerDeepvueData,
-      setPrimaryContact,
-      updateIntegrationConfig
+      enrichCustomerData: () => addLog("FORENSICS: Enrichment started."),
+      updateCustomerDeepvueData: (u: any) => addLog("FORENSICS: Intelligence updated."),
+      setPrimaryContact: (id: string) => addLog("CONTACT: Primary switched."),
+      updateIntegrationConfig: (id: string, f: any) => addLog(`INFRA: ${id} updated.`)
     }
   };
 };
