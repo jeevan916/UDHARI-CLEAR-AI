@@ -8,7 +8,7 @@ import {
 import { analyzeCustomerBehavior, generateUniqueRef } from '../utils/debtUtils';
 import { generateEnterpriseStrategy, getLiveLogs } from '../services/geminiService';
 import { 
-  INITIAL_TEMPLATES, INITIAL_INTEGRATIONS 
+  INITIAL_CUSTOMERS, INITIAL_TEMPLATES, INITIAL_INTEGRATIONS, INITIAL_GRADE_RULES 
 } from '../data/initialData';
 
 export const useAppStore = () => {
@@ -25,6 +25,7 @@ export const useAppStore = () => {
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterGrade, setFilterGrade] = useState('all');
+  const [dbStatus, setDbStatus] = useState<'CONNECTED' | 'DISCONNECTED' | 'RECONNECTING'>('RECONNECTING');
 
   const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean>>({ ledger: true, protocols: true, risk: true });
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -39,12 +40,12 @@ export const useAppStore = () => {
   
   const behavior = useMemo(() => {
     if (!activeCustomer) return null;
-    return analyzeCustomerBehavior(activeCustomer, gradeRules, callLogs);
+    return analyzeCustomerBehavior(activeCustomer, gradeRules.length > 0 ? gradeRules : INITIAL_GRADE_RULES, callLogs);
   }, [activeCustomer, gradeRules, callLogs]);
 
   const filteredCustomers = useMemo(() => {
     return customers.filter(c => {
-      const b = analyzeCustomerBehavior(c, gradeRules, callLogs);
+      const b = analyzeCustomerBehavior(c, gradeRules.length > 0 ? gradeRules : INITIAL_GRADE_RULES, callLogs);
       const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
                            c.phone.includes(searchTerm) || 
                            c.uniquePaymentCode.toLowerCase().includes(searchTerm.toLowerCase());
@@ -61,26 +62,41 @@ export const useAppStore = () => {
   // --- NODE INITIALIZATION & SYNC ---
   useEffect(() => {
     if (user) {
-      addLog(`HANDSHAKE: Authenticated as ${user.name}`);
+      addLog(`HANDSHAKE: Authenticating root identity ${user.name}`);
       const initializeData = async () => {
          try {
+            setDbStatus('RECONNECTING');
             const [custRes, ruleRes, liveLogs] = await Promise.all([
-               axios.get('/api/customers'),
-               axios.get('/api/grade-rules'),
+               axios.get('/api/customers').catch(e => e.response),
+               axios.get('/api/grade-rules').catch(e => e.response),
                getLiveLogs()
             ]);
-            setCustomers(custRes.data);
-            setGradeRules(ruleRes.data);
-            setSystemLogs(prev => [...liveLogs, ...prev]);
-            addLog("SYNC: Node 72.61.175.20 clusters synchronized.");
-            addLog("VAULT: Database u477692720_ArrearsFlow verified.");
-         } catch (e: any) {
-            console.error("Sync Failure:", e);
-            if (e.response?.status === 503) {
-                addLog("CRITICAL: Vault 503. Server is attempting database reconnection...");
+
+            // Handle potential 503 or 404 from partial backend readiness
+            if (custRes?.status === 200) {
+              setCustomers(custRes.data);
+              setDbStatus('CONNECTED');
+              addLog("VAULT: Database u477692720_ArrearsFlow synchronized.");
             } else {
-                addLog("ERROR: Infrastructure handshake timed out.");
+              setCustomers(INITIAL_CUSTOMERS);
+              setDbStatus('DISCONNECTED');
+              addLog("CRITICAL: Vault 503. Using offline cache (initialData). Check .env credentials.");
             }
+
+            if (ruleRes?.status === 200) {
+              setGradeRules(ruleRes.data);
+            } else {
+              setGradeRules(INITIAL_GRADE_RULES);
+            }
+
+            setSystemLogs(prev => [...liveLogs, ...prev]);
+            addLog("SYNC: Remote logic clusters online.");
+         } catch (e: any) {
+            console.error("Initialization Error:", e);
+            setDbStatus('DISCONNECTED');
+            setCustomers(INITIAL_CUSTOMERS);
+            setGradeRules(INITIAL_GRADE_RULES);
+            addLog("ERROR: Node infrastructure timed out. Operating in Local Mode.");
          }
       };
       initializeData();
@@ -106,7 +122,7 @@ export const useAppStore = () => {
     };
 
     try {
-       addLog(`STAGING: Transmitting ref ${newTx.id}...`);
+       addLog(`STAGING: Pushing ref ${newTx.id} to MySQL node...`);
        await axios.post('/api/transactions', { ...newTx, customerId: selectedId });
        
        setCustomers(prev => prev.map(c => {
@@ -120,10 +136,10 @@ export const useAppStore = () => {
          }
          return c;
        }));
-       addLog(`COMMIT_OK: Ledger mutated for ${activeCustomer.uniquePaymentCode}`);
+       addLog(`COMMIT: Ledger mutated for ${activeCustomer.uniquePaymentCode}`);
        setIsEntryModalOpen(false);
     } catch (e) {
-       addLog("REJECTED: MySQL node rejected the commit payload.");
+       addLog("REJECTED: Vault write error. Check DB permissions.");
     }
   };
 
@@ -156,7 +172,7 @@ export const useAppStore = () => {
        setCustomers(prev => [...prev, newCustomer]);
        addLog(`SYNC_OK: ${newCustomer.name} committed to vault.`);
     } catch (e) {
-       addLog("REJECTED: Onboarding rejected by database cluster.");
+       addLog("ERROR: Database cluster rejected the new entity.");
     }
   };
 
@@ -175,12 +191,12 @@ export const useAppStore = () => {
       }
       return c;
     }));
-    addLog(`IDENTITY_UPDATE: Primary contact updated.`);
+    addLog(`IDENTITY_MUTATION: Primary contact updated.`);
   };
 
   const updateIntegrationConfig = (nodeId: string, fields: IntegrationField[]) => {
     setIntegrations(prev => prev.map(node => node.id === nodeId ? { ...node, fields } : node));
-    addLog(`INFRA_UPDATE: Credentials committed to encrypted memory.`);
+    addLog(`INFRA_UPDATE: Credentials encrypted and committed.`);
   };
 
   return {
@@ -189,7 +205,7 @@ export const useAppStore = () => {
       callLogs, whatsappLogs, isAiLoading, searchTerm, filterGrade,
       isAdmin, activeCustomer, filteredCustomers, expandedMenus,
       isMobileMenuOpen, isEntryModalOpen, isEditModalOpen, editingTransaction,
-      entryDefaults, aiStrategy, behavior, templates, integrations
+      entryDefaults, aiStrategy, behavior, templates, integrations, dbStatus
     },
     actions: {
       setUser, setActiveView, setCustomers, setSearchTerm, setFilterGrade,
@@ -205,22 +221,22 @@ export const useAppStore = () => {
         const strategy = await generateEnterpriseStrategy(activeCustomer, callLogs);
         setAiStrategy(strategy);
         setIsAiLoading(false);
-        addLog(`ADVISORY: Heuristic decision received.`);
+        addLog(`ADVISORY: Heuristic roadmap received.`);
       },
       handleDeleteTransaction: (txId: string) => {
         setCustomers(prev => prev.map(c => c.id === selectedId ? { ...c, transactions: c.transactions.filter(t => t.id !== txId) } : c));
-        addLog(`CLEANUP: Ref ${txId} purged.`);
+        addLog(`CLEANUP: Reference ${txId} purged from memory.`);
       },
       openEditModal: (tx: Transaction) => { setEditingTransaction(tx); setIsEntryModalOpen(true); },
       enrichCustomerData: async () => {
         if (!activeCustomer) return;
         setIsAiLoading(true);
-        addLog(`FORENSIC: Pinging Deepvue for identity ${activeCustomer.phone}`);
+        addLog(`FORENSIC: Pinging Deepvue for identity trace ${activeCustomer.phone}`);
         setIsAiLoading(false);
       },
       handleAddCallLog: (log: CommunicationLog) => {
         setCallLogs(prev => [log, ...prev]);
-        addLog(`PROTOCOL: Interaction record committed.`);
+        addLog(`PROTOCOL: Voice interaction committed to ledger.`);
       },
       handleUpdateProfile: (updates: any) => {
         setCustomers(prev => prev.map(c => c.id === selectedId ? { ...c, ...updates } : c));

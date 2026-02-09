@@ -1,12 +1,13 @@
 import React from 'react';
 import { 
   ShieldCheck, Landmark, Users, TrendingUp, Layers, Zap, Globe, Activity,
-  Coins, UserCheck, ShieldAlert, Cpu, Database, Network, Fingerprint
+  Coins, UserCheck, ShieldAlert, Cpu, Database, Network, Fingerprint, AlertCircle
 } from 'lucide-react';
 import { DashboardCard } from '../components/DashboardCard';
 import { TerminalConsole } from '../components/TerminalConsole';
 import { formatCurrency, analyzeCustomerBehavior, formatGold } from '../utils/debtUtils';
 import { Customer, GradeRule, CommunicationLog } from '../types';
+import { useAppStore } from '../hooks/useAppStore';
 
 interface DashboardViewProps {
   customers: Customer[];
@@ -19,12 +20,15 @@ interface DashboardViewProps {
 export const DashboardView: React.FC<DashboardViewProps> = ({ 
   customers, isAdmin, systemLogs, gradeRules, callLogs 
 }) => {
+  const { state } = useAppStore();
   const totalLiability = customers.reduce((s, c) => s + c.currentBalance, 0);
   const totalGoldLiability = customers.reduce((s, c) => s + (c.currentGoldBalance || 0), 0);
   const criticalCount = customers.filter(c => {
     const b = analyzeCustomerBehavior(c, gradeRules, callLogs);
     return b.calculatedGrade === 'D' || b.calculatedGrade === 'C';
   }).length;
+
+  const isDbConnected = state.dbStatus === 'CONNECTED';
 
   return (
     <div className="space-y-8 animate-in fade-in duration-700 pb-24 max-w-[1700px] mx-auto">
@@ -42,27 +46,43 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <h2 className="text-4xl md:text-5xl font-black uppercase tracking-tighter leading-none mb-3">
                Recovery Command <span className="text-blue-500">Center</span>
             </h2>
-            <p className="text-slate-400 font-bold uppercase text-[10px] tracking-[0.3em]">Sanghavi Jewellers | Enterprise Grade v5.0.0</p>
+            <p className="text-slate-400 font-bold uppercase text-[10px] tracking-[0.3em]">Sanghavi Jewellers | Enterprise Grade v5.6.0</p>
          </div>
 
          <div className="relative z-10 flex flex-wrap gap-4">
             <div className="px-6 py-4 bg-white/5 border border-white/10 rounded-2xl flex flex-col items-center min-w-[120px]">
-               <Activity size={18} className="text-emerald-400 mb-2"/>
+               <Activity size={18} className={isDbConnected ? "text-emerald-400" : "text-rose-400"}/>
                <span className="text-[9px] font-black uppercase text-slate-500 tracking-widest">Logic Node</span>
-               <span className="text-xs font-bold text-emerald-400">HEALTHY</span>
+               <span className={`text-xs font-bold ${isDbConnected ? 'text-emerald-400' : 'text-rose-400'}`}>
+                 {isDbConnected ? 'HEALTHY' : 'DEGRADED'}
+               </span>
             </div>
             <div className="px-6 py-4 bg-white/5 border border-white/10 rounded-2xl flex flex-col items-center min-w-[120px]">
-               <Database size={18} className="text-blue-400 mb-2"/>
+               <Database size={18} className={isDbConnected ? "text-blue-400" : "text-amber-400"}/>
                <span className="text-[9px] font-black uppercase text-slate-500 tracking-widest">Vault Sync</span>
-               <span className="text-xs font-bold text-blue-400">LOCKED</span>
+               <span className={`text-xs font-bold ${isDbConnected ? 'text-blue-400' : 'text-amber-400'}`}>
+                 {state.dbStatus}
+               </span>
             </div>
             <div className="px-6 py-4 bg-white/5 border border-white/10 rounded-2xl flex flex-col items-center min-w-[120px]">
-               <Network size={18} className="text-amber-400 mb-2"/>
+               <Network size={18} className="text-amber-400"/>
                <span className="text-[9px] font-black uppercase text-slate-500 tracking-widest">Gateway</span>
                <span className="text-xs font-bold text-amber-400">ACTIVE</span>
             </div>
          </div>
       </div>
+
+      {!isDbConnected && (
+         <div className="bg-rose-50 border-2 border-rose-200 p-8 rounded-[2.5rem] flex items-center gap-6 animate-pulse">
+            <div className="p-4 bg-rose-600 text-white rounded-2xl shadow-lg">
+               <AlertCircle size={32}/>
+            </div>
+            <div>
+               <h3 className="text-xl font-black uppercase text-rose-900 tracking-tight">Vault Locked (503 Service Unavailable)</h3>
+               <p className="text-sm text-rose-700 font-medium mt-1">The application is unable to reach the MySQL cluster <strong>u477692720_ArrearsFlow</strong>. Please check your <code>.env</code> credentials and firewall rules on host <code>139.59.10.70</code>.</p>
+            </div>
+         </div>
+      )}
 
       {/* DYNAMIC METRIC GRID */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 md:gap-8">
@@ -148,7 +168,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               </div>
               
               {customers.slice(0, 8).map(c => {
-                const b = analyzeCustomerBehavior(c, gradeRules, callLogs);
+                const b = analyzeCustomerBehavior(c, gradeRules.length > 0 ? gradeRules : [], callLogs);
                 return (
                   <div key={c.id} className="grid grid-cols-12 items-center p-5 bg-white hover:bg-slate-50 border border-slate-100 hover:border-slate-200 rounded-[2rem] transition-all group cursor-pointer shadow-sm hover:shadow-md">
                     <div className="col-span-5 flex items-center gap-5">
@@ -197,26 +217,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         <div className="lg:col-span-4 flex flex-col h-full space-y-6">
            <div className="flex-1 min-h-[500px]">
               <TerminalConsole logs={systemLogs} />
-           </div>
-           
-           <div className="bg-white p-8 rounded-[3rem] border border-slate-100 shadow-xl">
-              <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-6 flex items-center gap-2">
-                 <Globe size={14} className="text-blue-500"/> Cluster Network Status
-              </h4>
-              <div className="space-y-5">
-                 <div className="flex justify-between items-center">
-                    <span className="text-xs font-bold text-slate-600 uppercase">pay.sanghavijewellers.in</span>
-                    <span className="w-3 h-3 bg-emerald-500 rounded-full shadow-[0_0_10px_#10b981]"></span>
-                 </div>
-                 <div className="flex justify-between items-center">
-                    <span className="text-xs font-bold text-slate-600 uppercase">WhatsApp Gateway</span>
-                    <span className="w-3 h-3 bg-emerald-500 rounded-full shadow-[0_0_10px_#10b981]"></span>
-                 </div>
-                 <div className="flex justify-between items-center">
-                    <span className="text-xs font-bold text-slate-600 uppercase">Deepvue Auth-API</span>
-                    <span className="w-3 h-3 bg-blue-500 rounded-full shadow-[0_0_10px_#3b82f6]"></span>
-                 </div>
-              </div>
            </div>
         </div>
       </div>
