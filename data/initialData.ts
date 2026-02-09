@@ -39,13 +39,11 @@ export const INITIAL_CUSTOMERS: Customer[] = [
       riskScore: 780,
       creditScore: 750,
       financialPropensity: 'HIGH',
-      associatedEntities: ['Nathan Traders Pvt Ltd', 'APN Gold House'],
-      gstFilingStatus: 'REGULAR',
       lastRefresh: '2025-12-01',
       panValid: true,
-      panNumber: 'ABCDE1234F',
       aadharValid: true,
-      aadharNumber: 'XXXX-XXXX-1234',
+      associatedEntities: ['Nathan Traders Pvt Ltd', 'APN Gold House'],
+      gstFilingStatus: 'REGULAR',
       verifiedDocuments: [
         {
            id: 'doc_1',
@@ -57,7 +55,7 @@ export const INITIAL_CUSTOMERS: Customer[] = [
            source: 'DEEPVUE_API',
            extractedFields: { 
               entityType: 'Individual',
-              aadhaarSeedingStatus: 'LINKED' // PAN Plus v2
+              aadhaarSeedingStatus: 'LINKED'
            }
         }
       ],
@@ -68,10 +66,8 @@ export const INITIAL_CUSTOMERS: Customer[] = [
                value: '9022484385', 
                ownerName: 'Self', 
                source: 'GST_REGISTRY', 
-               confidenceScore: 100, 
                status: 'Active',
                carrier: 'Jio',
-               circle: 'Mumbai',
                dndStatus: false 
             },
             { 
@@ -79,7 +75,6 @@ export const INITIAL_CUSTOMERS: Customer[] = [
                value: '9988112233', 
                ownerName: 'Son', 
                source: 'LINKEDIN', 
-               confidenceScore: 75, 
                status: 'Unverified',
                carrier: 'Airtel',
                dndStatus: true 
@@ -219,8 +214,8 @@ export const INITIAL_GRADE_RULES: GradeRule[] = [
       daysSincePayment: 90, 
       daysSinceContact: 15,
       antiSpamThreshold: 48,
-      antiSpamUnit: 'hours', // 48 Hours Cooldown
-      whatsapp: true, sms: true, templateId: 'TPL_003', whatsappTemplateId: 'TPL_003', smsTemplateId: 'TPL_002', frequencyDays: 2 
+      antiSpamUnit: 'hours', 
+      whatsapp: true, sms: true, whatsappTemplateId: 'TPL_003', smsTemplateId: 'TPL_002', frequencyDays: 2 
    },
    { 
       id: 'C', 
@@ -232,7 +227,7 @@ export const INITIAL_GRADE_RULES: GradeRule[] = [
       daysSinceContact: 7,
       antiSpamThreshold: 3,
       antiSpamUnit: 'days',
-      whatsapp: true, sms: true, templateId: 'TPL_002', whatsappTemplateId: 'TPL_001', smsTemplateId: 'TPL_002', frequencyDays: 3 
+      whatsapp: true, sms: true, whatsappTemplateId: 'TPL_001', smsTemplateId: 'TPL_002', frequencyDays: 3 
    },
    { 
       id: 'B', 
@@ -244,7 +239,7 @@ export const INITIAL_GRADE_RULES: GradeRule[] = [
       daysSinceContact: 30,
       antiSpamThreshold: 7,
       antiSpamUnit: 'days',
-      whatsapp: true, sms: false, templateId: 'TPL_001', whatsappTemplateId: 'TPL_001', frequencyDays: 7 
+      whatsapp: true, sms: false, whatsappTemplateId: 'TPL_001', frequencyDays: 7 
    },
    { 
       id: 'A', 
@@ -256,7 +251,7 @@ export const INITIAL_GRADE_RULES: GradeRule[] = [
       daysSinceContact: 0,
       antiSpamThreshold: 15,
       antiSpamUnit: 'days',
-      whatsapp: true, sms: false, templateId: 'TPL_001', whatsappTemplateId: 'TPL_001', frequencyDays: 30 
+      whatsapp: true, sms: false, whatsappTemplateId: 'TPL_001', frequencyDays: 30 
    }
 ];
 
@@ -268,7 +263,7 @@ export const INITIAL_CALL_LOGS: CommunicationLog[] = [
     content: 'Promised to pay by next Monday. Discussed invoice #8821.',
     timestamp: '2025-12-12T14:30:00',
     status: 'completed',
-    duration: 120, // seconds
+    duration: 120, 
     outcome: 'Connected'
   },
   {

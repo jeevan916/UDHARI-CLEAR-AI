@@ -51,124 +51,93 @@ export interface DigitalFingerprint {
     region: string;
     country: string;
   };
-  metadata?: {
-    upiId?: string;
-    paymentMethod?: string;
-    amount?: number;
-    provider?: 'setu' | 'razorpay';
-  };
+  metadata?: any;
 }
 
 export interface VerifiedDocument {
   id: string;
-  type: 'PAN' | 'AADHAR' | 'GSTIN' | 'UDYAM' | 'VOTER_ID';
+  type: 'PAN' | 'AADHAR' | 'GSTIN' | 'UDYAM';
   documentNumber: string;
-  status: 'VALID' | 'INVALID' | 'SUSPICIOUS' | 'PENDING';
+  status: 'VALID' | 'INVALID' | 'PENDING';
   nameOnDocument: string;
   verificationDate: string;
-  source: 'DEEPVUE_API' | 'MANUAL_UPLOAD' | 'MOBILE_TRACE'; 
-  extractedFields: {
-    dob?: string;
-    fatherName?: string;
-    address?: string;
-    entityType?: string;
-    dateOfIncorporation?: string;
-    aadhaarSeedingStatus?: 'LINKED' | 'NOT_LINKED' | 'UNKNOWN'; 
-    category?: string; 
-  };
+  source?: string;
+  extractedFields?: any;
   rawResponse?: any;
 }
 
-// --- DEEPVUE LIBRARY STRUCTURES ---
-
+// Added Deepvue related types
 export interface DiscoveredContact {
-  type: 'mobile' | 'email' | 'landline';
   value: string;
+  type: string;
   ownerName: string;
-  source: 'GST_REGISTRY' | 'CIBIL_ENQUIRY' | 'LINKEDIN' | 'PREVIOUS_LOAN' | 'EQUIFAX' | 'MOBILE_TRACE';
-  confidenceScore: number;
-  status: 'Verified' | 'Unverified' | 'Invalid' | 'Active' | 'Inactive';
-  
-  // Mobile Network Intelligence Fields
-  carrier?: string; 
-  circle?: string; 
-  dndStatus?: boolean; 
-  lastActive?: string;
-}
-
-export interface DiscoveredAddress {
-  type: 'registered' | 'operational' | 'residential' | 'permanent';
-  fullAddress: string;
   source: string;
-  lastVerified: string;
+  carrier?: string;
+  circle?: string;
+  dndStatus?: boolean;
+  confidenceScore?: number;
+  status?: string;
 }
 
 export interface BankAccount {
-  accountNumber: string; 
-  ifsc: string;
   bankName: string;
-  accountType: 'SAVINGS' | 'CURRENT' | 'OD' | 'CC' | 'UPI_LINKED';
-  source: 'PENNY_DROP' | 'GST_FILING' | 'NACH_MANDATE' | 'MOBILE_TO_UPI';
-  upiId?: string; 
+  accountNumber: string;
+  ifsc: string;
+  accountType: string;
+  source: string;
+  upiId?: string;
 }
 
 export interface LoanDetails {
   lender: string;
-  type: 'PERSONAL' | 'BUSINESS' | 'GOLD' | 'HOME' | 'CC';
+  type: string;
   amount: number;
   outstanding: number;
-  status: 'ACTIVE' | 'CLOSED' | 'WRITTEN_OFF' | 'DPD_30+';
+  status: string;
   disbursalDate: string;
 }
 
-// New: Credit Enquiry (Hard Pulls)
-export interface CreditEnquiry {
-  enquiryDate: string;
-  purpose: string; // e.g., 'Credit Card', 'Personal Loan'
-  institution: string;
-  amount: number;
-}
-
-// New: Vehicle Registration (RC)
 export interface RcDetails {
   rcNumber: string;
   ownerName: string;
-  vehicleClass: string; // e.g. "MCWG", "LMV"
+  vehicleClass: string;
   fuelType: string;
   model: string;
   insuranceValidUntil: string;
   registrationDate: string;
 }
 
-// New: Driving License (DL)
 export interface DlDetails {
   dlNumber: string;
   name: string;
   dob: string;
-  validUntil: string;
-  status: 'Active' | 'Expired';
+  expiry: string;
 }
 
-// New: EPFO/UAN
 export interface UanDetails {
   uanNumber: string;
-  employerName: string; // Last known employer
+  employerName: string;
   memberId: string;
-  exitDate?: string; // If left
+  exitDate?: string;
+}
+
+export interface CreditEnquiry {
+  enquiryDate: string;
+  purpose: string;
+  institution: string;
+  amount: number;
 }
 
 export interface DeepvueLibrary {
   contacts: DiscoveredContact[];
-  addresses: DiscoveredAddress[];
+  addresses: Array<{ fullAddress: string; type: string; source: string; lastVerified: string }>;
   bankAccounts: BankAccount[];
   loans: LoanDetails[];
-  
-  // Advanced Modules
   rcDetails?: RcDetails[];
   dlDetails?: DlDetails[];
   uanDetails?: UanDetails[];
   creditEnquiries?: CreditEnquiry[];
-  mobileIdentityName?: string; 
+  mobileIdentityName?: string;
 }
 
 export interface DeepvueInsight {
@@ -176,87 +145,66 @@ export interface DeepvueInsight {
   riskScore: number; 
   creditScore: number; 
   financialPropensity: 'HIGH' | 'MEDIUM' | 'LOW';
-  associatedEntities: string[]; 
-  gstFilingStatus: 'REGULAR' | 'IRREGULAR' | 'UNKNOWN';
   lastRefresh: string;
-  
   verifiedDocuments: VerifiedDocument[];
-  
   library: DeepvueLibrary;
-
-  // Legacy accessors
   panValid: boolean;
-  panNumber?: string;
   aadharValid: boolean;
-  aadharNumber?: string;
+  associatedEntities: string[];
+  gstFilingStatus: string;
 }
 
-// --- NEW PROFILE STRUCTURES ---
+// Added Profile types
 export interface ProfileContact {
   id: string;
-  type: 'mobile' | 'email' | 'work' | 'home';
+  type: string;
   value: string;
-  label?: string;
   isPrimary: boolean;
-  source: 'MANUAL' | 'DEEPVUE_IMPORT';
+  source: string;
+  label?: string;
 }
 
 export interface ProfileAddress {
   id: string;
-  type: 'residential' | 'office' | 'registered' | 'warehouse';
+  type: string;
   value: string;
   isPrimary: boolean;
-  source: 'MANUAL' | 'DEEPVUE_IMPORT';
+  source: string;
 }
 
 export interface Customer {
   id: string;
   name: string;
-  phone: string; // Keep as Primary Sync
+  phone: string;
   email?: string;
-  address?: string; // Keep as Primary Sync
+  address?: string;
   taxNumber?: string;
-  reference?: string;
   groupId: string;
-  birthDate?: string;
-  anniversaryDate?: string;
   creditLimit?: number;
-  spouseName?: string;
   isActive: boolean;
-  profilePhoto?: string;
-  tags?: string[]; // Added Tags
-  
-  // New Array Fields for Multiple Support
-  contactList: ProfileContact[];
-  addressList: ProfileAddress[];
-
+  tags?: string[];
   uniquePaymentCode: string;
-  grade: CustomerGrade;
-  
   currentBalance: number; 
   currentGoldBalance: number;
-
   lastTxDate: string;
   transactions: Transaction[];
-  status: 'active' | 'overdue' | 'settled';
-
-  lastCallDate?: string;
-  lastWhatsappDate?: string;
-  lastSmsDate?: string; 
-  paymentLinkStats: {
-    totalOpens: number;
-    lastOpened?: string;
-  };
   enabledGateways: {
     razorpay: boolean;
     setu: boolean;
   };
-  
   fingerprints: DigitalFingerprint[];
   deepvueInsights?: DeepvueInsight;
-  
-  panNumber?: string;
-  aadharNumber?: string;
+  lastCallDate?: string;
+  lastWhatsappDate?: string;
+  lastSmsDate?: string;
+  grade: CustomerGrade;
+  status?: string;
+  reference?: string;
+  birthDate?: string;
+  profilePhoto?: string;
+  contactList?: ProfileContact[];
+  addressList?: ProfileAddress[];
+  paymentLinkStats?: { totalOpens: number, lastOpened: string };
 }
 
 export interface GradeRule {
@@ -264,73 +212,42 @@ export interface GradeRule {
   label: string;
   color: string;
   priority: number;
-  
   minBalance: number;       
   daysSincePayment: number; 
   daysSinceContact: number; 
-  
   antiSpamThreshold: number; 
   antiSpamUnit: 'hours' | 'days'; 
-
   whatsapp: boolean;
   sms: boolean;
-  templateId: string; 
   whatsappTemplateId?: string; 
   smsTemplateId?: string;      
-  frequencyDays: number;
-}
-
-export interface CustomerGroup {
-  id: string;
-  name: string;
-  status: 'Active' | 'Inactive';
+  frequencyDays?: number;
 }
 
 export interface Template {
   id: string;
   name: string;
-  label?: string; 
-  context?: string; 
   channel: 'whatsapp' | 'sms';
   content: string;
-  variables: string[];
-  status: 'active' | 'draft' | 'pending_dlt' | 'pending_meta' | 'rejected' | 'APPROVED' | 'REJECTED' | 'PENDING' | 'PAUSED';
-  category?: string;
-  provider?: string;
-  
-  dltTemplateId?: string; 
-  senderId?: string;      
-  msg91Route?: 'transactional' | 'promotional';
-
-  waHeader?: { type: 'TEXT' | 'IMAGE' | 'DOCUMENT' | 'NONE'; content?: string };
-  waFooter?: string;
-  waButtons?: { type: 'QUICK_REPLY' | 'URL' | 'PHONE_NUMBER'; text: string; value?: string }[];
+  status: 'active' | 'draft' | 'APPROVED' | 'PENDING' | 'REJECTED';
+  category: string;
   language?: string;
+  waHeader?: { type: 'TEXT' | 'IMAGE' | 'NONE'; content?: string };
+  waFooter?: string;
+  waButtons?: Array<{ type: string; text: string; value?: string }>;
+  dltTemplateId?: string;
+  senderId?: string;
+  label?: string;
+  context?: string;
+  variables?: string[];
+  msg91Route?: string;
 }
 
-export interface CommunicationLog {
-  id: string;
-  customerId: string;
-  type: 'sms' | 'whatsapp' | 'call' | 'visit';
-  content: string;
-  timestamp: string;
-  status: string;
-  duration?: number;
-  outcome?: string;
-}
-
-export interface AiStrategy {
-  riskScore: number;
-  riskLevel: string;
-  analysis: string;
-  recommendedAction: string;
-  drafts: { tone: string; text: string }[];
-}
-
+// Added Integration types
 export interface IntegrationField {
   key: string;
   label: string;
-  type: 'text' | 'password';
+  type: string;
   value: string;
   placeholder?: string;
 }
@@ -339,21 +256,30 @@ export interface IntegrationNode {
   id: string;
   name: string;
   category: string;
-  status: 'online' | 'offline' | 'processing' | 'idle';
+  status: 'online' | 'offline' | 'idle' | 'processing';
   latency: string;
   description: string;
   fields: IntegrationField[];
 }
 
-export interface BuildMemory {
-  buildId: string;
-  version: string;
-  primaryColor: string;
-  navigationTree: string[];
-  mandatoryModules: string[];
-  coreDesignElements: string[];
-  lastUpdate: string;
-  serverNode: string;
+export interface CommunicationLog {
+  id: string;
+  customerId: string;
+  type: 'sms' | 'whatsapp' | 'call';
+  content: string;
+  timestamp: string;
+  status: string;
+  outcome?: string;
+  duration?: number;
 }
 
-export type View = 'dashboard' | 'customers' | 'transactions' | 'communication' | 'payment-logs' | 'whatsapp-config' | 'whatsapp-chat' | 'grades' | 'template-architect' | 'view-customer' | 'integrations' | 'call-logs' | 'brain' | 'whatsapp-logs' | 'cortex-architect';
+export interface AiStrategy {
+  riskScore: number;
+  riskLevel: string;
+  analysis: string;
+  recommendedAction: string;
+  drafts?: Array<{ tone: string; text: string }>;
+  next_step?: string;
+}
+
+export type View = 'dashboard' | 'customers' | 'transactions' | 'communication' | 'grades' | 'view-customer' | 'integrations' | 'brain' | 'cortex-architect' | 'whatsapp-config' | 'whatsapp-chat' | 'whatsapp-logs' | 'payment-logs' | 'template-architect' | 'call-logs' | 'audit-log';

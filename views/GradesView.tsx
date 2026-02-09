@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { 
   HeartPulse, Activity, Zap, Check, X, Edit2, Sliders, MessageSquare, Smartphone, 
@@ -95,6 +96,7 @@ export const GradesView: React.FC<GradesViewProps> = ({ isAdmin, gradeRules, set
        nextChar = String.fromCharCode(maxCode + 1);
     }
 
+    // Fix: Using correct property names from GradeRule interface (whatsappTemplateId and smsTemplateId instead of templateId)
     const newRule: GradeRule = {
        id: nextChar,
        label: 'New Segment',
@@ -107,7 +109,8 @@ export const GradesView: React.FC<GradesViewProps> = ({ isAdmin, gradeRules, set
        antiSpamUnit: 'hours',
        whatsapp: false,
        sms: false,
-       templateId: '',
+       whatsappTemplateId: '',
+       smsTemplateId: '',
        frequencyDays: 30
     };
 

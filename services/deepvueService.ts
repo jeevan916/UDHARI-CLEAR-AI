@@ -175,7 +175,7 @@ export const deepvueService = {
         // Handle various response shapes (array of strings or objects)
         const handles = response.data.upi_handles || response.data.vpas || [];
         
-        return handles.map((upi: any, idx: number) => ({ 
+        return handles.map((upi: any) => ({ 
            bankName: typeof upi === 'string' ? (upi.split('@')[1] || 'UPI Bank').toUpperCase() : (upi.bank_name || 'UPI Bank'), 
            accountNumber: 'N/A', 
            ifsc: 'UPI_VIRTUAL', 
@@ -297,7 +297,6 @@ export const deepvueService = {
           value: phoneNumber, 
           ownerName: 'Primary Input', 
           source: 'GST_REGISTRY', 
-          confidenceScore: 100, 
           status: 'Active'
        }
     ];
@@ -317,7 +316,6 @@ export const deepvueService = {
          bankAccounts: [],
          loans: [],
          rcDetails: [],
-         dlDetails: [],
          uanDetails: [],
          creditEnquiries: []
       },

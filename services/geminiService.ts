@@ -25,7 +25,8 @@ export const generateEnterpriseStrategy = async (customer: Customer, callLogs: C
       riskLevel: data.risk_grade || 'UNKNOWN',
       analysis: data.analysis || "Audit complete.",
       recommendedAction: data.next_step || "Manual Review",
-      drafts: [{ tone: 'Professional', text: "Protocol synchronized with kernel." }]
+      drafts: [{ tone: 'Professional', text: "Protocol synchronized with kernel." }],
+      next_step: data.next_step
     };
   } catch (error) {
     console.error("Kernel AI Failure:", error);

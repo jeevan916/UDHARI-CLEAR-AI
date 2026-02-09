@@ -1,213 +1,112 @@
 import React from 'react';
 import { 
-  ShieldCheck, Landmark, Users, TrendingUp, Layers, Zap, Globe, Activity,
-  Coins, UserCheck, ShieldAlert, Cpu, Database, Network, Fingerprint, AlertCircle, RefreshCw, Server
+  ShieldCheck, Landmark, TrendingUp, Activity, Coins, Database, Server, RefreshCw, AlertCircle
 } from 'lucide-react';
-import { DashboardCard } from '../components/DashboardCard';
 import { TerminalConsole } from '../components/TerminalConsole';
-import { formatCurrency, analyzeCustomerBehavior, formatGold } from '../utils/debtUtils';
+import { formatCurrency, formatGold } from '../utils/debtUtils';
 import { Customer, GradeRule, CommunicationLog } from '../types';
 import { useAppStore } from '../hooks/useAppStore';
 
-interface DashboardViewProps {
-  customers: Customer[];
-  isAdmin: boolean;
-  systemLogs: string[];
-  gradeRules: GradeRule[];
-  callLogs: CommunicationLog[];
-}
-
-export const DashboardView: React.FC<DashboardViewProps> = ({ 
-  customers, isAdmin, systemLogs, gradeRules, callLogs 
+export const DashboardView: React.FC<{ customers: Customer[]; systemLogs: string[]; gradeRules: GradeRule[]; callLogs: CommunicationLog[] }> = ({ 
+  customers, systemLogs, gradeRules, callLogs 
 }) => {
   const { state, actions } = useAppStore();
   const totalLiability = customers.reduce((s, c) => s + c.currentBalance, 0);
-  const totalGoldLiability = customers.reduce((s, c) => s + (c.currentGoldBalance || 0), 0);
+  const totalGold = customers.reduce((s, c) => s + (c.currentGoldBalance || 0), 0);
   
-  const isDbConnected = state.dbStatus === 'CONNECTED';
-  const serverIp = "139.59.10.70";
-
   return (
-    <div className="space-y-8 animate-in fade-in duration-700 pb-24 max-w-[1700px] mx-auto">
+    <div className="space-y-8 animate-in fade-in duration-700 max-w-[1600px] mx-auto pb-20">
       
-      {/* EXECUTIVE COMMAND HEADER */}
-      <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-6 bg-slate-900 text-white p-10 rounded-[3.5rem] shadow-2xl relative overflow-hidden border border-white/5">
+      {/* ENTERPRISE COMMAND HEADER */}
+      <div className="bg-[#0d1117] text-white p-10 rounded-[3rem] shadow-2xl relative overflow-hidden border border-white/5 flex flex-col md:flex-row justify-between items-center gap-6">
          <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-20"></div>
          <div className="relative z-10">
             <div className="flex items-center gap-3 mb-4">
-               <div className="w-10 h-10 bg-emerald-500/20 rounded-xl border border-emerald-500/30 flex items-center justify-center">
-                  <Server className="text-emerald-400" size={24}/>
-               </div>
-               <span className="text-[10px] font-black uppercase tracking-[0.5em] text-emerald-400">Hostinger Cloud Professional</span>
+               <Server className="text-blue-500" size={20}/>
+               <span className="text-[10px] font-black uppercase tracking-[0.5em] text-blue-500">Hostinger Sovereign Cluster</span>
             </div>
-            <h2 className="text-4xl md:text-5xl font-black uppercase tracking-tighter leading-none mb-3">
-               Sovereign Recovery <span className="text-blue-500">Hub</span>
+            <h2 className="text-4xl md:text-5xl font-black uppercase tracking-tighter leading-none mb-2">
+               Recovery <span className="text-amber-500">Authority</span>
             </h2>
-            <p className="text-slate-400 font-bold uppercase text-[10px] tracking-[0.3em]">Sanghavi Jewellers | Co-located Node v5.9.0</p>
+            <p className="text-slate-500 font-bold uppercase text-[9px] tracking-[0.3em]">Sanghavi Jewellers | Active Node: 139.59.10.70</p>
          </div>
 
-         <div className="relative z-10 flex flex-wrap gap-4">
-            <div className="px-6 py-4 bg-white/5 border border-white/10 rounded-2xl flex flex-col items-center min-w-[140px]">
-               <Activity size={18} className={isDbConnected ? "text-emerald-400" : "text-rose-400"}/>
-               <span className="text-[9px] font-black uppercase text-slate-500 tracking-widest mt-1">Logic Stack</span>
-               <span className={`text-xs font-bold ${isDbConnected ? 'text-emerald-400' : 'text-rose-400'}`}>
-                 {isDbConnected ? 'STABLE' : 'DEGRADED'}
-               </span>
+         <div className="relative z-10 flex gap-4">
+            <div className={`px-6 py-4 rounded-2xl flex flex-col items-center min-w-[140px] border ${state.dbStatus === 'CONNECTED' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-rose-500/10 border-rose-500/20 text-rose-400'}`}>
+               <Database size={18} className="mb-2"/>
+               <span className="text-[8px] font-black uppercase tracking-widest">Vault@127.0.0.1</span>
+               <span className="text-xs font-bold">{state.dbStatus}</span>
             </div>
-            <div className="px-6 py-4 bg-white/5 border border-white/10 rounded-2xl flex flex-col items-center min-w-[140px]">
-               <Database size={18} className={isDbConnected ? "text-blue-400" : "text-amber-400"}/>
-               <span className="text-[9px] font-black uppercase text-slate-500 tracking-widest mt-1">Local Vault</span>
-               <span className={`text-xs font-bold ${isDbConnected ? 'text-blue-400' : 'text-amber-400'}`}>
-                 {isDbConnected ? 'CO-LOCATED' : 'LINK_LOST'}
-               </span>
+            <div className="px-6 py-4 bg-white/5 border border-white/10 rounded-2xl flex flex-col items-center min-w-[140px] text-blue-400">
+               <Activity size={18} className="mb-2"/>
+               <span className="text-[8px] font-black uppercase tracking-widest">Execution Tier</span>
+               <span className="text-xs font-bold uppercase">PRO_NODE</span>
             </div>
          </div>
       </div>
 
-      {!isDbConnected && (
-         <div className="bg-rose-50 border-2 border-rose-200 p-8 rounded-[2.5rem] flex flex-col md:flex-row items-center gap-8 animate-in slide-in-from-top-4">
-            <div className="p-5 bg-rose-600 text-white rounded-2xl shadow-lg shrink-0">
-               <AlertCircle size={40}/>
-            </div>
-            <div className="flex-1 text-center md:text-left">
-               <h3 className="text-2xl font-black uppercase text-rose-900 tracking-tight">Handshake Refused</h3>
-               <p className="text-sm text-rose-700 font-medium mt-1 leading-relaxed max-w-2xl">
-                 Node <strong>{serverIp}</strong> cannot reach its co-located vault. Ensure the <code>u477692720_ArrearsFlow</code> database user is authorized for <code>localhost</code> access.
-               </p>
-            </div>
-            <button 
-              onClick={() => actions.initializeData()}
-              className="px-10 py-5 bg-rose-600 text-white rounded-3xl font-black uppercase tracking-widest text-xs shadow-xl hover:bg-rose-700 transition-all flex items-center gap-3 shrink-0"
-            >
-               <RefreshCw size={18}/> Retry Local Link
-            </button>
-         </div>
-      )}
-
-      {/* DYNAMIC METRIC GRID */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 md:gap-8">
-        <div className="bg-white p-8 rounded-[3rem] shadow-xl border border-slate-100 relative overflow-hidden group">
-           <div className="absolute top-0 right-0 p-6 opacity-[0.05] group-hover:scale-110 transition-transform">
-              <Landmark size={120} className="text-indigo-600"/>
-           </div>
-           <p className="text-[10px] font-black uppercase text-slate-400 tracking-[0.3em] mb-4">Capital Exposure</p>
-           <h3 className="text-4xl font-black text-slate-900 tracking-tighter tabular-nums leading-none mb-2">
-             {formatCurrency(totalLiability)}
-           </h3>
-           <div className="flex items-center gap-2 mt-4">
-              <TrendingUp size={12} className="text-emerald-500"/>
-              <span className="text-[10px] font-black text-emerald-600 uppercase">+2.4% Port Yield</span>
+      {/* METRIC GRID */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+        <div className="bg-white/5 p-8 rounded-[2.5rem] shadow-xl border border-white/5 group hover:border-blue-500/30 transition-all">
+           <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest mb-4">Portfolio Exposure</p>
+           <h3 className="text-4xl font-black text-white tracking-tighter tabular-nums">{formatCurrency(totalLiability)}</h3>
+           <div className="flex items-center gap-2 mt-4 text-rose-500">
+              <TrendingUp size={14}/>
+              <span className="text-[10px] font-black uppercase tracking-widest">Unrealized Liability</span>
            </div>
         </div>
 
-        <div className="bg-amber-50 p-8 rounded-[3rem] shadow-xl border border-amber-100 relative overflow-hidden group">
-           <div className="absolute top-0 right-0 p-6 opacity-[0.1] group-hover:scale-110 transition-transform">
-              <Coins size={120} className="text-amber-600"/>
-           </div>
-           <p className="text-[10px] font-black uppercase text-amber-600/60 tracking-[0.3em] mb-4">Metal Balance</p>
-           <h3 className="text-4xl font-black text-amber-900 tracking-tighter tabular-nums leading-none mb-2">
-             {formatGold(totalGoldLiability)}
-           </h3>
-           <p className="text-[9px] font-bold text-amber-700 uppercase tracking-widest mt-4">999 Fine Pure Grade</p>
+        <div className="bg-amber-500/5 p-8 rounded-[2.5rem] shadow-xl border border-amber-500/10 group hover:border-amber-500/30 transition-all">
+           <p className="text-[10px] font-black uppercase text-amber-500/60 tracking-widest mb-4">Metal Repository</p>
+           <h3 className="text-4xl font-black text-amber-500 tracking-tighter tabular-nums">{formatGold(totalGold)}</h3>
+           <p className="text-[9px] font-bold text-amber-700 uppercase tracking-widest mt-4">Fine Gold 999.9 Verified</p>
         </div>
 
-        <div className="bg-white p-8 rounded-[3rem] shadow-xl border border-slate-100 relative overflow-hidden group">
-           <div className="absolute top-0 right-0 p-6 opacity-[0.05]">
-              <Fingerprint size={120} className="text-blue-600"/>
-           </div>
-           <p className="text-[10px] font-black uppercase text-slate-400 tracking-[0.3em] mb-4">Audited Entities</p>
-           <h3 className="text-4xl font-black text-slate-900 tracking-tighter tabular-nums leading-none mb-2">
-             {customers.length}
-           </h3>
+        <div className="bg-white/5 p-8 rounded-[2.5rem] shadow-xl border border-white/5">
+           <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest mb-4">Node Connections</p>
+           <h3 className="text-4xl font-black text-white tracking-tighter tabular-nums">{customers.length}</h3>
            <div className="mt-4 flex -space-x-2">
-              {[1,2,3,4].map(i => (
-                 <div key={i} className="w-6 h-6 rounded-full border-2 border-white bg-slate-200"></div>
-              ))}
-              <div className="w-6 h-6 rounded-full border-2 border-white bg-blue-600 flex items-center justify-center text-[8px] text-white font-bold">+</div>
+              {[1,2,3].map(i => <div key={i} className="w-7 h-7 rounded-full border-2 border-[#010409] bg-slate-800"></div>)}
            </div>
         </div>
 
-        <div className="bg-slate-950 p-8 rounded-[3rem] shadow-2xl relative overflow-hidden group border border-white/5">
-           <div className="absolute -bottom-8 -right-8 p-6 opacity-10">
-              <ShieldCheck size={200} className="text-white"/>
-           </div>
-           <p className="text-[10px] font-black uppercase text-slate-500 tracking-[0.3em] mb-4">Authority Node</p>
-           <h3 className="text-3xl font-black text-white tracking-tighter leading-none mb-2">
-             {serverIp}
-           </h3>
-           <div className="mt-4 flex items-center gap-3">
-              <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_15px_#10b981]"></div>
-              <span className="text-[10px] font-black text-emerald-400 uppercase tracking-[0.2em]">Authorized: LIVE_COLOCATED</span>
+        <div className="bg-blue-600/10 p-8 rounded-[2.5rem] shadow-xl border border-blue-500/20 relative overflow-hidden">
+           <div className="absolute -bottom-4 -right-4 opacity-10 text-blue-400"><ShieldCheck size={120}/></div>
+           <p className="text-[10px] font-black uppercase text-blue-500 tracking-widest mb-4">Security Protocol</p>
+           <h3 className="text-2xl font-black text-white tracking-tighter">AES_256_GCM</h3>
+           <div className="mt-4 flex items-center gap-2 text-emerald-400">
+              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+              <span className="text-[10px] font-black uppercase">Socket Encrypted</span>
            </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        <div className="lg:col-span-8 bg-white rounded-[3.5rem] border border-slate-100 shadow-2xl overflow-hidden flex flex-col min-h-[600px]">
-           <div className="p-10 border-b border-slate-50 flex justify-between items-center bg-slate-50/50">
-              <div className="flex items-center gap-6">
-                 <div className="w-14 h-14 bg-white rounded-[1.5rem] flex items-center justify-center text-indigo-600 shadow-lg border border-slate-100">
-                    <Activity size={28}/>
-                 </div>
-                 <div>
-                    <h3 className="text-2xl font-black uppercase tracking-tighter text-slate-900 leading-none">Exposure Audit</h3>
-                    <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest mt-2 flex items-center gap-2">
-                       <ShieldAlert size={14} className="text-rose-500"/> Real-time Portfolio Risk Monitoring
-                    </p>
-                 </div>
-              </div>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 h-[600px]">
+        <div className="lg:col-span-8 bg-[#0d1117] rounded-[3rem] shadow-2xl border border-white/5 overflow-hidden flex flex-col">
+           <div className="p-8 border-b border-white/5 flex justify-between items-center bg-white/5">
+              <h3 className="text-xl font-black uppercase tracking-tight text-white">Entity Watchlist</h3>
+              <button className="text-[10px] font-black uppercase text-blue-500 tracking-widest">View Master</button>
            </div>
-           
-           <div className="p-6 md:p-10 space-y-4 flex-1 overflow-y-auto">
-              {customers.length > 0 ? customers.slice(0, 8).map(c => {
-                const b = analyzeCustomerBehavior(c, gradeRules.length > 0 ? gradeRules : [], callLogs);
-                return (
-                  <div key={c.id} className="grid grid-cols-12 items-center p-5 bg-white hover:bg-slate-50 border border-slate-100 hover:border-slate-200 rounded-[2rem] transition-all group cursor-pointer shadow-sm hover:shadow-md">
-                    <div className="col-span-5 flex items-center gap-5">
-                      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black text-white shadow-xl transition-transform group-hover:scale-110 ${
-                        b.calculatedGrade === 'A' ? 'bg-emerald-500' : b.calculatedGrade === 'B' ? 'bg-blue-600' : 'bg-rose-500'
-                      }`}>
-                        {b.calculatedGrade}
+           <div className="flex-1 p-4 space-y-3 overflow-y-auto custom-scrollbar">
+              {customers.slice(0, 8).map(c => (
+                <div key={c.id} className="p-5 bg-white/5 border border-white/5 rounded-2xl flex justify-between items-center hover:bg-white/10 transition-all cursor-pointer">
+                   <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-xl bg-slate-800 text-slate-400 flex items-center justify-center font-black text-xs uppercase">{c.name.charAt(0)}</div>
+                      <div>
+                         <p className="text-sm font-black text-white uppercase">{c.name}</p>
+                         <p className="text-[10px] font-mono text-slate-500">{c.uniquePaymentCode}</p>
                       </div>
-                      <div className="min-w-0">
-                        <p className="text-sm font-black text-slate-900 uppercase tracking-tight truncate">{c.name}</p>
-                        <p className="text-[10px] font-mono text-slate-400 mt-0.5">{c.uniquePaymentCode}</p>
-                      </div>
-                    </div>
-                    
-                    <div className="col-span-2 text-right md:text-left">
-                       <span className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase border ${
-                         b.score > 70 ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 
-                         b.score > 40 ? 'bg-blue-50 text-blue-600 border-blue-100' : 
-                         'bg-rose-50 text-rose-600 border-rose-100'
-                       }`}>
-                         {b.score}% Score
-                       </span>
-                    </div>
-
-                    <div className="col-span-2 hidden md:block">
-                       <p className="text-xs font-black text-slate-700">{b.daysInactive} Days</p>
-                    </div>
-
-                    <div className="col-span-3 text-right">
-                       <p className="text-lg font-black text-slate-900 tabular-nums tracking-tighter">{formatCurrency(c.currentBalance)}</p>
-                       <p className="text-[10px] font-bold text-amber-600 tabular-nums">{formatGold(c.currentGoldBalance)} Metal</p>
-                    </div>
-                  </div>
-                );
-              }) : (
-                 <div className="h-64 flex flex-col items-center justify-center text-slate-300">
-                    <Database size={48} className="mb-4 opacity-20"/>
-                    <p className="text-[10px] font-black uppercase tracking-widest">Handshake in Progress...</p>
-                 </div>
-              )}
+                   </div>
+                   <div className="text-right">
+                      <p className="text-lg font-black text-white">{formatCurrency(c.currentBalance)}</p>
+                      <span className="px-2 py-0.5 bg-rose-500/10 text-rose-500 border border-rose-500/20 rounded text-[9px] font-black uppercase">Authority Recall</span>
+                   </div>
+                </div>
+              ))}
            </div>
         </div>
-
-        <div className="lg:col-span-4 flex flex-col h-full space-y-6">
-           <div className="flex-1 min-h-[500px]">
-              <TerminalConsole logs={systemLogs} />
-           </div>
+        <div className="lg:col-span-4 h-full">
+           <TerminalConsole logs={systemLogs} />
         </div>
       </div>
     </div>

@@ -54,64 +54,64 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
   };
 
   return (
-    <div className="min-h-screen flex bg-slate-900">
+    <div className="min-h-screen flex bg-slate-950">
       <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-indigo-950">
         <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1573408301185-9146fe634ad0?q=80&w=1920&auto=format&fit=crop')] bg-cover bg-center opacity-20 mix-blend-overlay"></div>
-        <div className="absolute inset-0 bg-gradient-to-br from-indigo-950/90 to-slate-950/90"></div>
+        <div className="absolute inset-0 bg-gradient-to-br from-[#010409]/90 to-slate-950/90"></div>
         <div className="relative z-10 flex flex-col justify-between p-16 w-full">
           <div>
-            <div className="w-16 h-16 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center mb-8 border border-white/20">
-              <Landmark className="text-amber-400" size={32} />
+            <div className="w-16 h-16 bg-white/5 backdrop-blur-md rounded-2xl flex items-center justify-center mb-8 border border-white/10 shadow-2xl">
+              <Landmark className="text-amber-500" size={32} />
             </div>
             <h1 className="text-5xl font-black text-white tracking-tighter mb-4">Sanghavi <span className="text-amber-500 italic font-medium">Jewellers</span></h1>
-            <p className="text-indigo-200 text-lg max-w-md leading-relaxed font-medium">
-              Enterprise Recovery Node v2.2.1 <br/>
-              <span className="text-xs font-black uppercase tracking-widest text-indigo-400">Powered by ArrearsFlow AI</span>
+            <p className="text-slate-400 text-lg max-w-md leading-relaxed font-medium">
+              Sovereign Recovery Node v3.5.0 <br/>
+              <span className="text-[10px] font-black uppercase tracking-[0.5em] text-blue-500">Hostinger Cloud Professional</span>
             </p>
           </div>
           
           <div className="space-y-4">
-             <div className="flex items-center gap-4 text-indigo-300/60 text-xs font-black uppercase tracking-widest">
-                <span>Secure Node: 72.61.175.20</span>
-                <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></div>
-                <span>SSL Encrypted</span>
+             <div className="flex items-center gap-4 text-slate-500 text-xs font-black uppercase tracking-widest">
+                <span>Cluster Node: 139.59.10.70</span>
+                <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_8px_#10b981]"></div>
+                <span>Secured via local-loopback</span>
              </div>
           </div>
         </div>
       </div>
 
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-slate-50">
-        <div className="w-full max-w-md bg-white p-10 rounded-[2.5rem] shadow-2xl border border-slate-100">
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-[#010409]">
+        <div className="w-full max-w-md bg-white/5 p-10 rounded-[2.5rem] border border-white/10 shadow-2xl backdrop-blur-sm">
           <div className="text-center mb-10">
-             <h2 className="text-3xl font-black text-slate-900 uppercase tracking-tighter">Authority Access</h2>
-             <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mt-2">Sign in to initialize session</p>
+             <h2 className="text-3xl font-black text-white uppercase tracking-tighter">Authority Entrance</h2>
+             <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.3em] mt-2">Initialize Secure Node Session</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label className="block text-[10px] font-black text-slate-400 uppercase mb-2 ml-1 tracking-widest">Corporate ID</label>
+              <label className="block text-[10px] font-black text-slate-500 uppercase mb-2 ml-1 tracking-widest">Node ID / Corporate Email</label>
               <div className="relative">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
+                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600" size={18} />
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-slate-900 uppercase tracking-tight"
-                  placeholder="name@company.com"
+                  className="w-full pl-12 pr-4 py-4 bg-white/5 border border-white/10 rounded-2xl text-sm font-bold focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all text-white uppercase tracking-tight"
+                  placeholder="admin@arrearsflow.com"
                   required
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-[10px] font-black text-slate-400 uppercase mb-2 ml-1 tracking-widest">Security Key</label>
+              <label className="block text-[10px] font-black text-slate-500 uppercase mb-2 ml-1 tracking-widest">Security Access Key</label>
               <div className="relative">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600" size={18} />
                 <input
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-slate-900"
+                  className="w-full pl-12 pr-4 py-4 bg-white/5 border border-white/10 rounded-2xl text-sm font-bold focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all text-white"
                   placeholder="••••••••"
                   required
                 />
@@ -119,7 +119,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
             </div>
 
             {error && (
-              <div className="p-4 bg-rose-50 text-rose-600 text-[10px] font-black uppercase tracking-widest rounded-xl flex items-center gap-3 animate-in fade-in slide-in-from-top-1">
+              <div className="p-4 bg-rose-500/10 text-rose-500 text-[10px] font-black uppercase tracking-widest rounded-xl border border-rose-500/20 flex items-center gap-3 animate-in shake">
                 <AlertCircle size={16} /> {error}
               </div>
             )}
@@ -127,12 +127,12 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-slate-900 hover:bg-slate-800 text-white font-black py-5 rounded-2xl flex items-center justify-center gap-3 transition-all shadow-xl shadow-slate-900/20 disabled:opacity-70 disabled:cursor-not-allowed uppercase text-[11px] tracking-[0.2em]"
+              className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-5 rounded-2xl flex items-center justify-center gap-3 transition-all shadow-2xl shadow-blue-600/20 disabled:opacity-70 disabled:cursor-not-allowed uppercase text-[11px] tracking-[0.2em]"
             >
               {loading ? (
                 <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
               ) : (
-                <>Establish Handshake <ArrowRight size={18} /></>
+                <>Establish Link <ArrowRight size={18} /></>
               )}
             </button>
             
@@ -140,23 +140,23 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
                <button 
                  type="button"
                  onClick={() => fillCredentials('admin')}
-                 className="py-3 text-[9px] bg-indigo-50 text-indigo-700 font-black uppercase tracking-widest hover:bg-indigo-100 rounded-xl transition-colors flex items-center justify-center gap-2"
+                 className="py-3 text-[9px] bg-indigo-500/10 text-indigo-400 font-black uppercase tracking-widest hover:bg-indigo-500/20 rounded-xl transition-colors border border-indigo-500/20 flex items-center justify-center gap-2"
                >
-                 <KeyRound size={14}/> Admin
+                 <KeyRound size={14}/> Admin Root
                </button>
                <button 
                  type="button"
                  onClick={() => fillCredentials('staff')}
-                 className="py-3 text-[9px] bg-slate-100 text-slate-700 font-black uppercase tracking-widest hover:bg-slate-200 rounded-xl transition-colors flex items-center justify-center gap-2"
+                 className="py-3 text-[9px] bg-slate-800 text-slate-300 font-black uppercase tracking-widest hover:bg-slate-700 rounded-xl transition-colors border border-white/5 flex items-center justify-center gap-2"
                >
-                 <Smartphone size={14}/> Staff
+                 <Smartphone size={14}/> Agent Node
                </button>
             </div>
           </form>
 
-          <div className="mt-10 text-center">
-            <p className="text-[8px] font-black text-slate-300 uppercase tracking-[0.3em]">
-              Authorized Use Only • server1645-asia
+          <div className="mt-10 text-center border-t border-white/5 pt-6">
+            <p className="text-[8px] font-black text-slate-600 uppercase tracking-[0.4em]">
+              Node Sync: 139.59.10.70 • AES-256 Enabled
             </p>
           </div>
         </div>

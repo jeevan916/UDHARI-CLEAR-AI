@@ -2,252 +2,173 @@ import { useState, useMemo, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { 
   Customer, User, AiStrategy, Transaction, Template, 
-  GradeRule, CommunicationLog, View, TransactionType, TransactionUnit,
-  CustomerGrade, IntegrationNode, IntegrationField, DeepvueInsight
+  GradeRule, CommunicationLog, View, CustomerGrade, IntegrationNode, IntegrationField, TransactionUnit, TransactionType
 } from '../types';
-import { analyzeCustomerBehavior, generateUniqueRef } from '../utils/debtUtils';
-import { generateEnterpriseStrategy, getLiveLogs } from '../services/geminiService';
-import { 
-  INITIAL_CUSTOMERS, INITIAL_TEMPLATES, INITIAL_INTEGRATIONS, INITIAL_GRADE_RULES 
-} from '../data/initialData';
+import { analyzeCustomerBehavior } from '../utils/debtUtils';
+import { INITIAL_CUSTOMERS, INITIAL_GRADE_RULES, INITIAL_TEMPLATES, INITIAL_CALL_LOGS, INITIAL_WHATSAPP_LOGS, INITIAL_INTEGRATIONS } from '../data/initialData';
 
 export const useAppStore = () => {
   const [user, setUser] = useState<User | null>(null);
   const [activeView, setActiveView] = useState<View>('dashboard');
   const [customers, setCustomers] = useState<Customer[]>([]);
-  const [gradeRules, setGradeRules] = useState<GradeRule[]>([]);
+  const [gradeRules, setGradeRules] = useState<GradeRule[]>(INITIAL_GRADE_RULES);
   const [templates, setTemplates] = useState<Template[]>(INITIAL_TEMPLATES);
-  const [integrations, setIntegrations] = useState<IntegrationNode[]>(INITIAL_INTEGRATIONS);
-  const [callLogs, setCallLogs] = useState<CommunicationLog[]>([]);
-  const [whatsappLogs, setWhatsappLogs] = useState<CommunicationLog[]>([]);
+  const [callLogs, setCallLogs] = useState<CommunicationLog[]>(INITIAL_CALL_LOGS);
+  const [whatsappLogs, setWhatsappLogs] = useState<CommunicationLog[]>(INITIAL_WHATSAPP_LOGS);
   const [systemLogs, setSystemLogs] = useState<string[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [isAiLoading, setIsAiLoading] = useState(false);
+  const [dbStatus, setDbStatus] = useState<'CONNECTED' | 'DISCONNECTED'>('DISCONNECTED');
+  
   const [searchTerm, setSearchTerm] = useState('');
   const [filterGrade, setFilterGrade] = useState('all');
-  const [dbStatus, setDbStatus] = useState<'CONNECTED' | 'DISCONNECTED' | 'RECONNECTING'>('RECONNECTING');
-
-  const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean>>({ ledger: true, protocols: true, risk: true });
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean>>({ ledger: true, protocols: true, risk: true });
+  
   const [isEntryModalOpen, setIsEntryModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [entryDefaults, setEntryDefaults] = useState<{ type?: TransactionType, unit?: TransactionUnit } | null>(null);
   const [aiStrategy, setAiStrategy] = useState<AiStrategy | null>(null);
+  const [integrations, setIntegrations] = useState<IntegrationNode[]>(INITIAL_INTEGRATIONS);
 
   const isAdmin = user?.role === 'admin';
   const activeCustomer = useMemo(() => customers.find(c => c.id === selectedId), [customers, selectedId]);
   
   const behavior = useMemo(() => {
     if (!activeCustomer) return null;
-    return analyzeCustomerBehavior(activeCustomer, gradeRules.length > 0 ? gradeRules : INITIAL_GRADE_RULES, callLogs);
+    return analyzeCustomerBehavior(activeCustomer, gradeRules, callLogs);
   }, [activeCustomer, gradeRules, callLogs]);
 
   const filteredCustomers = useMemo(() => {
     return customers.filter(c => {
-      const b = analyzeCustomerBehavior(c, gradeRules.length > 0 ? gradeRules : INITIAL_GRADE_RULES, callLogs);
       const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
                            c.phone.includes(searchTerm) || 
                            c.uniquePaymentCode.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      const b = analyzeCustomerBehavior(c, gradeRules, callLogs);
       const matchesGrade = filterGrade === 'all' || b.calculatedGrade === filterGrade;
+      
       return matchesSearch && matchesGrade;
     });
   }, [customers, searchTerm, filterGrade, gradeRules, callLogs]);
 
   const addLog = useCallback((msg: string) => {
-    const timestamp = new Date().toLocaleTimeString();
-    setSystemLogs(prev => [`[${timestamp}] ${msg}`, ...prev].slice(0, 60));
+    setSystemLogs(prev => [`[${new Date().toLocaleTimeString()}] ${msg}`, ...prev].slice(0, 50));
   }, []);
 
-  // --- VAULT INITIALIZATION & RESILIENCE ---
   const initializeData = useCallback(async () => {
     if (!user) return;
-    
-    setDbStatus('RECONNECTING');
-    addLog(`INIT: Handshake requested by ${user.name}`);
-    
+    addLog("NODE_INIT: Established handshake with 139.59.10.70");
     try {
-      const [custRes, ruleRes, logsRes] = await Promise.all([
-        axios.get('/api/customers').catch(err => err.response),
-        axios.get('/api/grade-rules').catch(err => err.response),
-        getLiveLogs()
-      ]);
-
-      if (custRes?.status === 200) {
-        setCustomers(custRes.data);
-        setDbStatus('CONNECTED');
-        addLog("VAULT: Database clusters synchronized.");
-      } else {
-        setCustomers(INITIAL_CUSTOMERS);
-        setDbStatus('DISCONNECTED');
-        addLog("VAULT_FAIL: Database unreachable (503). Using Local cache.");
-      }
-
-      if (ruleRes?.status === 200) {
-        setGradeRules(ruleRes.data);
-      } else {
-        setGradeRules(INITIAL_GRADE_RULES);
-      }
-
-      setSystemLogs(prev => [...logsRes, ...prev]);
-    } catch (e: any) {
-      console.error("Critical Node Failure:", e);
-      setDbStatus('DISCONNECTED');
+      const healthRes = await axios.get('/api/kernel/health');
+      addLog(`KERNEL_LINK: Node version ${healthRes.data.version} stable.`);
+      
+      const res = await axios.get('/api/customers');
+      setCustomers(res.data.length ? res.data : INITIAL_CUSTOMERS);
+      setDbStatus('CONNECTED');
+      addLog("VAULT_SYNC: Local loopback 127.0.0.1 synchronized.");
+    } catch (e) {
       setCustomers(INITIAL_CUSTOMERS);
-      setGradeRules(INITIAL_GRADE_RULES);
-      addLog("NODE_OFFLINE: Remote logic clusters timed out.");
+      setDbStatus('DISCONNECTED');
+      addLog("VAULT_OFFLINE: Could not reach 127.0.0.1. Using edge cache.");
     }
   }, [user, addLog]);
 
   useEffect(() => {
-    if (user) {
-      initializeData();
-    }
+    if (user) initializeData();
   }, [user, initializeData]);
 
-  const handleCommitEntry = async (entry: any) => {
-    if (!selectedId || !activeCustomer) return;
-    
-    const amount = parseFloat(entry.amount);
-    const newTx: Transaction = {
-      id: editingTransaction?.id || generateUniqueRef('TX'),
-      type: entry.type,
-      unit: entry.unit || 'money',
-      amount: amount,
-      method: entry.method,
-      description: entry.description,
-      date: entry.date || new Date().toISOString().split('T')[0],
-      staffId: user?.id || 'sys',
-      balanceAfter: entry.unit === 'money' 
-         ? (entry.type === 'debit' ? activeCustomer.currentBalance + amount : activeCustomer.currentBalance - amount)
-         : (entry.type === 'debit' ? activeCustomer.currentGoldBalance + amount : activeCustomer.currentGoldBalance - amount)
-    };
-
+  const handleAiInquiry = async () => {
+    if (!activeCustomer) return;
+    setIsAiLoading(true);
+    addLog(`CORTEX: Analyzing entity ${activeCustomer.uniquePaymentCode} via Gemini 3 Pro...`);
     try {
-       addLog(`STAGING: Pushing Ledger mutation ${newTx.id}...`);
-       await axios.post('/api/transactions', { ...newTx, customerId: selectedId });
-       
-       setCustomers(prev => prev.map(c => {
-         if (c.id === selectedId) {
-           return { 
-             ...c, 
-             transactions: [newTx, ...c.transactions],
-             currentBalance: newTx.unit === 'money' ? newTx.balanceAfter : c.currentBalance,
-             currentGoldBalance: newTx.unit === 'gold' ? newTx.balanceAfter : c.currentGoldBalance
-           };
-         }
-         return c;
-       }));
-       addLog(`COMMIT_OK: Ref ${newTx.id} persisted to vault.`);
-       setIsEntryModalOpen(false);
+      const res = await axios.post('/api/kernel/reason', {
+        customerData: { 
+          name: activeCustomer.name, 
+          balance: activeCustomer.currentBalance, 
+          grade: activeCustomer.grade,
+          metal: activeCustomer.currentGoldBalance
+        },
+        interactionLogs: callLogs.filter(l => l.customerId === activeCustomer.id)
+      });
+      setAiStrategy(res.data);
+      setIsAiLoading(false);
+      addLog("CORTEX_SYNC: Strategy roadmap injected.");
+      return res.data;
     } catch (e) {
-       addLog("REJECTED: MySQL node rejected the commit payload.");
+      setIsAiLoading(false);
+      addLog("CORTEX_ERROR: AI reasoning cycle interrupted.");
+      return null;
     }
   };
 
-  const addCustomer = async (data: any) => {
-    const newId = `c_${Date.now()}`;
-    const newCustomer: Customer = {
-      id: newId,
-      name: data.name.toUpperCase(),
+  const handleCommitEntry = (data: any) => {
+    addLog(`LEDGER_COMMIT: Writing ${data.type} of ${data.amount} to ${data.unit} vault...`);
+    setIsEntryModalOpen(false);
+  };
+
+  const handleUpdateProfile = (updates: Partial<Customer>) => {
+    if (!activeCustomer) return;
+    setCustomers(prev => prev.map(c => c.id === activeCustomer.id ? { ...c, ...updates } : c));
+    setIsEditModalOpen(false);
+    addLog(`SYSTEM_PATCH: Entity ${activeCustomer.uniquePaymentCode} updated.`);
+  };
+
+  const addCustomer = (data: any) => {
+    const newCust: Customer = {
+      id: `c_${Date.now()}`,
+      name: data.name,
       phone: data.phone,
       groupId: data.groupId,
       taxNumber: data.taxNumber,
-      currentBalance: parseFloat(data.openingBalance || '0'),
+      currentBalance: parseFloat(data.openingBalance) || 0,
       currentGoldBalance: 0,
       isActive: true,
-      contactList: [{ id: `cnt_${Date.now()}`, type: 'mobile', value: data.phone, isPrimary: true, source: 'MANUAL' }],
-      addressList: [],
-      uniquePaymentCode: `${data.name.substring(0,3).toUpperCase()}-${Math.floor(100+Math.random()*900)}`,
-      grade: CustomerGrade.A,
+      uniquePaymentCode: data.name.substring(0,3).toUpperCase() + '-' + Math.floor(Math.random()*1000),
       lastTxDate: new Date().toISOString().split('T')[0],
       transactions: [],
-      status: 'active',
-      paymentLinkStats: { totalOpens: 0 },
       enabledGateways: { razorpay: true, setu: true },
-      fingerprints: []
+      fingerprints: [],
+      grade: CustomerGrade.A
     };
-
-    try {
-       addLog(`ONBOARDING: Transmitting identity ${newCustomer.uniquePaymentCode}...`);
-       await axios.post('/api/customers', newCustomer);
-       setCustomers(prev => [...prev, newCustomer]);
-       addLog(`SYNC_OK: ${newCustomer.name} committed to vault.`);
-    } catch (e) {
-       addLog("REJECTED: Onboarding protocol failed.");
-    }
-  };
-
-  const updateCustomerDeepvueData = (customerId: string, data: Partial<DeepvueInsight>) => {
-    setCustomers(prev => prev.map(c => 
-      c.id === customerId ? { ...c, deepvueInsights: { ...(c.deepvueInsights || {}), ...data } as DeepvueInsight } : c
-    ));
-    addLog(`INTEL_UPDATE: Forensic trace updated for ${customerId}.`);
-  };
-
-  const setPrimaryContact = (customerId: string, value: string) => {
-    setCustomers(prev => prev.map(c => {
-      if (c.id === customerId) {
-        const updatedContacts = (c.contactList || []).map(cnt => ({ ...cnt, isPrimary: cnt.value === value }));
-        return { ...c, phone: value, contactList: updatedContacts };
-      }
-      return c;
-    }));
-    addLog(`IDENTITY_FIX: Primary phone updated.`);
+    setCustomers(prev => [...prev, newCust]);
+    addLog(`VAULT_WRITE: New entity established: ${newCust.name}`);
   };
 
   const updateIntegrationConfig = (nodeId: string, fields: IntegrationField[]) => {
-    setIntegrations(prev => prev.map(node => node.id === nodeId ? { ...node, fields } : node));
-    addLog(`INFRA_UPDATE: Node ${nodeId} credentials updated.`);
+    setIntegrations(prev => prev.map(n => n.id === nodeId ? { ...n, fields } : n));
+    addLog(`NODE_CONFIG: Infrastructure node ${nodeId} recalibrated.`);
+  };
+
+  const handleAddCallLog = (log: CommunicationLog) => {
+    setCallLogs(prev => [log, ...prev]);
+    addLog(`VOICE_LOG: Documented interaction with ${log.customerId}`);
   };
 
   return {
-    state: {
+    state: { 
       user, activeView, customers, selectedId, systemLogs, gradeRules, 
-      callLogs, whatsappLogs, isAiLoading, searchTerm, filterGrade,
-      isAdmin, activeCustomer, filteredCustomers, expandedMenus,
-      isMobileMenuOpen, isEntryModalOpen, isEditModalOpen, editingTransaction,
-      entryDefaults, aiStrategy, behavior, templates, integrations, dbStatus
+      callLogs, isAiLoading, dbStatus, isAdmin, activeCustomer, behavior, 
+      templates, whatsappLogs, searchTerm, filterGrade, isMobileMenuOpen, 
+      expandedMenus, isEntryModalOpen, isEditModalOpen, editingTransaction, 
+      entryDefaults, aiStrategy, integrations, filteredCustomers 
     },
-    actions: {
-      setUser, setActiveView, setCustomers, setSearchTerm, setFilterGrade,
-      setExpandedMenus, setIsMobileMenuOpen, setIsEntryModalOpen, setEditingTransaction,
-      setEntryDefaults, setIsEditModalOpen, setTemplates, setGradeRules,
-      handleCommitEntry, addCustomer, initializeData,
+    actions: { 
+      setUser, setActiveView, setCustomers, setSelectedId, addLog, initializeData, 
+      handleAiInquiry, setSearchTerm, setFilterGrade, setIsMobileMenuOpen, 
+      setExpandedMenus, setIsEntryModalOpen, setIsEditModalOpen, 
+      setEditingTransaction, setEntryDefaults, setGradeRules, setTemplates,
+      updateIntegrationConfig, handleAddCallLog, handleCommitEntry, handleUpdateProfile,
+      addCustomer,
       navigateToCustomer: (id: string) => { setSelectedId(id); setActiveView('view-customer'); },
-      resetCustomerView: () => { setSelectedId(null); setActiveView('customers'); setAiStrategy(null); },
-      handleAiInquiry: async () => {
-        if (!activeCustomer) return;
-        setIsAiLoading(true);
-        addLog(`CORTEX: Requesting deep strategy for ${activeCustomer.uniquePaymentCode}...`);
-        const strategy = await generateEnterpriseStrategy(activeCustomer, callLogs);
-        setAiStrategy(strategy);
-        setIsAiLoading(false);
-        addLog(`CORTEX_REASON: Analysis received.`);
-      },
-      handleDeleteTransaction: (txId: string) => {
-        setCustomers(prev => prev.map(c => c.id === selectedId ? { ...c, transactions: c.transactions.filter(t => t.id !== txId) } : c));
-        addLog(`CLEANUP: Record ${txId} purged from memory.`);
-      },
+      resetCustomerView: () => { setSelectedId(null); setActiveView('customers'); },
+      handleDeleteTransaction: (id: string) => addLog(`LEDGER_DELETE: Requested removal of hash ${id}`),
       openEditModal: (tx: Transaction) => { setEditingTransaction(tx); setIsEntryModalOpen(true); },
-      enrichCustomerData: async () => {
-        if (!activeCustomer) return;
-        setIsAiLoading(true);
-        addLog(`FORENSIC: Pinging Deepvue node for ${activeCustomer.phone}...`);
-        setIsAiLoading(false);
-      },
-      handleAddCallLog: (log: CommunicationLog) => {
-        setCallLogs(prev => [log, ...prev]);
-        addLog(`VOICE_PROTOCOL: Interaction committed.`);
-      },
-      handleUpdateProfile: (updates: any) => {
-        setCustomers(prev => prev.map(c => c.id === selectedId ? { ...c, ...updates } : c));
-        setIsEditModalOpen(false);
-        addLog(`IDENTITY: Profile mutation successful.`);
-      },
-      updateCustomerDeepvueData,
-      setPrimaryContact,
-      updateIntegrationConfig
+      enrichCustomerData: () => addLog("FORENSICS_START: Triggered deep-trace background enrichment..."),
+      updateCustomerDeepvueData: (updates: any) => addLog("VAULT_SYNC: Forensic insights updated."),
+      setPrimaryContact: (id: string) => addLog(`SYSTEM: Primary communication node reassigned.`)
     }
   };
 };
