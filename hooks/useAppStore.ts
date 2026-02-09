@@ -27,7 +27,6 @@ export const useAppStore = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterGrade, setFilterGrade] = useState('all');
 
-  // UI Local States
   const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean>>({ ledger: true, protocols: true, risk: true });
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isEntryModalOpen, setIsEntryModalOpen] = useState(false);
@@ -36,7 +35,6 @@ export const useAppStore = () => {
   const [entryDefaults, setEntryDefaults] = useState<{ type?: TransactionType, unit?: TransactionUnit } | null>(null);
   const [aiStrategy, setAiStrategy] = useState<AiStrategy | null>(null);
 
-  // Derived Logic
   const isAdmin = user?.role === 'admin';
   const activeCustomer = useMemo(() => customers.find(c => c.id === selectedId), [customers, selectedId]);
   
@@ -61,12 +59,11 @@ export const useAppStore = () => {
 
   useEffect(() => {
     if (user) {
-      addLog(`SESSION_AUTH: ${user.name} identified.`);
+      addLog(`NODE_72_61_175_20: Session established for ${user.name}`);
       getLiveLogs().then(logs => setSystemLogs(prev => [...logs, ...prev]));
     }
   }, [user]);
 
-  // Command Handlers
   const handleCommitEntry = (entry: any) => {
     if (!selectedId) return;
     
@@ -99,7 +96,7 @@ export const useAppStore = () => {
       return c;
     }));
 
-    addLog(`LEDGER_COMMIT: ${entry.type.toUpperCase()} transaction logged.`);
+    addLog(`COMMIT_STAGED: Ledger mutation processed for node ${selectedId}`);
     setIsEntryModalOpen(false);
   };
 
@@ -125,7 +122,7 @@ export const useAppStore = () => {
       fingerprints: []
     };
     setCustomers(prev => [...prev, newCustomer]);
-    addLog(`ENTITY_SYNC: ${newCustomer.name} onboarded.`);
+    addLog(`NEW_IDENTITY: ${newCustomer.uniquePaymentCode} onboarded.`);
   };
 
   return {
@@ -146,11 +143,11 @@ export const useAppStore = () => {
       handleAiInquiry: async () => {
         if (!activeCustomer) return;
         setIsAiLoading(true);
-        addLog(`KERNEL_QUERY: Behavioral audit for ${activeCustomer.name}`);
+        addLog(`CORTEX_REQ: Analyzing behavioral vectors for ${activeCustomer.uniquePaymentCode}`);
         const strategy = await generateEnterpriseStrategy(activeCustomer, callLogs);
         setAiStrategy(strategy);
         setIsAiLoading(false);
-        addLog(`KERNEL_REPLY: Intelligence cached.`);
+        addLog(`CORTEX_REPLY: Heuristic strategy cached.`);
       },
       handleDeleteTransaction: (txId: string) => {
         setCustomers(prev => prev.map(c => c.id === selectedId ? { ...c, transactions: c.transactions.filter(t => t.id !== txId) } : c));
@@ -159,14 +156,19 @@ export const useAppStore = () => {
       enrichCustomerData: async () => {
         if (!activeCustomer) return;
         setIsAiLoading(true);
+        addLog(`DEEPVUE_TRACE: Pinging forensic APIs for ${activeCustomer.phone}`);
         const insights = await deepvueService.fetchInsights(activeCustomer.phone, activeCustomer.taxNumber || '');
         setCustomers(prev => prev.map(c => c.id === activeCustomer.id ? { ...c, deepvueInsights: insights } : c));
         setIsAiLoading(false);
+        addLog(`DEEPVUE_REPLY: Discovered documents linked.`);
       },
-      updateCustomerDeepvueData: (id: string, data: any) => {}, // Placeholder for forensic updates
-      setPrimaryContact: (id: string, phone: string) => {}, // Placeholder for identity management
-      updateIntegrationConfig: (id: string, fields: any) => {}, // Infrastructure management
-      handleAddCallLog: (log: CommunicationLog) => setCallLogs(prev => [log, ...prev]),
+      updateCustomerDeepvueData: (id: string, data: any) => {}, 
+      setPrimaryContact: (id: string, phone: string) => {}, 
+      updateIntegrationConfig: (id: string, fields: any) => {}, 
+      handleAddCallLog: (log: CommunicationLog) => {
+        setCallLogs(prev => [log, ...prev]);
+        addLog(`VOICE_LOG: Interaction recorded for ${log.customerId}`);
+      },
       handleUpdateProfile: (updates: any) => {
         setCustomers(prev => prev.map(c => c.id === selectedId ? { ...c, ...updates } : c));
         setIsEditModalOpen(false);

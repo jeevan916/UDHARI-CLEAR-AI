@@ -1,6 +1,6 @@
 {
-  "name": "arrears-flow-enterprise",
-  "version": "2.1.0",
+  "name": "sanghavi-jewellers-recovery-node",
+  "version": "2.2.1",
   "private": true,
   "type": "module",
   "scripts": {
@@ -10,7 +10,7 @@
     "start": "tsx server.ts"
   },
   "dependencies": {
-    "@google/genai": "^1.35.0",
+    "@google/genai": "1.30.0",
     "axios": "^1.6.0",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",

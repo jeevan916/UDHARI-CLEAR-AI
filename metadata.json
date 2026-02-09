@@ -1,6 +1,6 @@
 {
-  "name": "ArrearsFlow Enterprise v2.1",
-  "description": "Enterprise-grade debt recovery CRM powered by Gemini AI. Features automated risk profiling, smart message drafting, and omnichannel ledgers.",
+  "name": "Sanghavi Jewellers Recovery Node",
+  "description": "Enterprise-grade debt recovery CRM for high-value jewellery transactions. Features automated risk profiling, smart message drafting, and omnichannel ledgers.",
   "requestFramePermissions": [
     "geolocation",
     "camera",

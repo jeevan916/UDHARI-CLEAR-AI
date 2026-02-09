@@ -2,10 +2,24 @@
 export default {
   content: [
     "./index.html",
-    "./**/*.{js,ts,jsx,tsx}",
+    "./*.{ts,tsx}",
+    "./components/**/*.{ts,tsx}",
+    "./views/**/*.{ts,tsx}",
+    "./hooks/**/*.{ts,tsx}",
+    "./services/**/*.{ts,tsx}",
+    "./utils/**/*.{ts,tsx}",
+    "./data/**/*.{ts,tsx}"
   ],
   theme: {
     extend: {
+      colors: {
+        indigo: {
+          950: '#0b0e1b',
+        },
+        amber: {
+          500: '#f59e0b',
+        }
+      },
       animation: {
         'progress-fast': 'progress 1s ease-in-out infinite',
       },
