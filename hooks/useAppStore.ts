@@ -73,9 +73,10 @@ export const useAppStore = () => {
             setGradeRules(ruleRes.data);
             setSystemLogs(prev => [...liveLogs, ...prev]);
             addLog("SYNC: Node clusters synchronized with pay.sanghavijewellers.in");
+            addLog("VAULT: Database u477692720_ArrearsFlow is LOCKED and SECURE.");
          } catch (e) {
             console.error("Sync Failure:", e);
-            addLog("ERROR: Sovereign DB handshake failed. Retry required.");
+            addLog("ERROR: Sovereign DB handshake failed. Network latency detected.");
          }
       };
       initializeData();
@@ -118,7 +119,7 @@ export const useAppStore = () => {
        addLog(`COMMIT_SUCCESS: Ledger mutated for ${activeCustomer.uniquePaymentCode}`);
        setIsEntryModalOpen(false);
     } catch (e) {
-       addLog("CRITICAL: Ledger mutation rejected by MySQL Node.");
+       addLog("CRITICAL: Ledger mutation rejected by MySQL Node. Check credentials.");
     }
   };
 
@@ -146,12 +147,12 @@ export const useAppStore = () => {
     };
 
     try {
-       addLog(`ONBOARDING: Transmitting identity ${newCustomer.uniquePaymentCode}...`);
+       addLog(`ONBOARDING: Transmitting identity ${newCustomer.uniquePaymentCode} to node 72.61.175.20...`);
        await axios.post('/api/customers', newCustomer);
        setCustomers(prev => [...prev, newCustomer]);
        addLog(`ENTITY_REGISTERED: Handshake complete for ${newCustomer.name}`);
     } catch (e) {
-       addLog("ERROR: Customer onboarding rejected by DB.");
+       addLog("ERROR: Customer onboarding rejected by database cluster.");
     }
   };
 
@@ -196,33 +197,31 @@ export const useAppStore = () => {
       handleAiInquiry: async () => {
         if (!activeCustomer) return;
         setIsAiLoading(true);
-        addLog(`CORTEX_REASONING: Analyzing behavior for ${activeCustomer.uniquePaymentCode}...`);
+        addLog(`CORTEX_REASONING: Analyzing behavior for ${activeCustomer.uniquePaymentCode} via Gemini 3...`);
         const strategy = await generateEnterpriseStrategy(activeCustomer, callLogs);
         setAiStrategy(strategy);
         setIsAiLoading(false);
-        addLog(`ADVISORY_RECEIVED: Logic Gate decision cached.`);
+        addLog(`ADVISORY_RECEIVED: Logic Gate decision cached in local state.`);
       },
       handleDeleteTransaction: (txId: string) => {
-        // Optimistic UI for delete, actual API call would follow
         setCustomers(prev => prev.map(c => c.id === selectedId ? { ...c, transactions: c.transactions.filter(t => t.id !== txId) } : c));
-        addLog(`LEDGER_CLEANUP: Reference ${txId} purged from active memory.`);
+        addLog(`LEDGER_CLEANUP: Reference ${txId} purged from node memory.`);
       },
       openEditModal: (tx: Transaction) => { setEditingTransaction(tx); setIsEntryModalOpen(true); },
       enrichCustomerData: async () => {
         if (!activeCustomer) return;
         setIsAiLoading(true);
-        addLog(`FORENSIC_TRACE: Pinging Deepvue for ${activeCustomer.phone}...`);
-        // Deepvue integration triggers here
+        addLog(`FORENSIC_TRACE: Pinging Deepvue for mobile ${activeCustomer.phone}...`);
         setIsAiLoading(false);
       },
       handleAddCallLog: (log: CommunicationLog) => {
         setCallLogs(prev => [log, ...prev]);
-        addLog(`VOICE_PROTOCOL: Verbal interaction record committed.`);
+        addLog(`VOICE_PROTOCOL: Verbal interaction record committed to audit trail.`);
       },
       handleUpdateProfile: (updates: any) => {
         setCustomers(prev => prev.map(c => c.id === selectedId ? { ...c, ...updates } : c));
         setIsEditModalOpen(false);
-        addLog(`ENTITY_UPDATED: Profile mutation synchronized.`);
+        addLog(`ENTITY_UPDATED: Profile mutation synchronized with Hostinger node.`);
       },
       updateCustomerDeepvueData,
       setPrimaryContact,

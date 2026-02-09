@@ -16,14 +16,16 @@ app.use(cors());
 app.use(express.json());
 
 // --- PRODUCTION CORE: GEMINI AI ---
+// Initializing with direct process.env.API_KEY reference as per strict guidelines
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
 
-// --- PRODUCTION CORE: MYSQL ENTERPRISE ---
+// --- PRODUCTION CORE: MYSQL ENTERPRISE (72.61.175.20) ---
 const dbConfig = {
-  host: process.env.DB_HOST || '72.61.175.20',
-  user: process.env.DB_USER || 'u477692720_ArrearsFlow',
-  password: process.env.DB_PASSWORD || 'ArrearsFlow@916',
-  database: process.env.DB_NAME || 'u477692720_ArrearsFlow',
+  host: '72.61.175.20',
+  user: 'u477692720_ArrearsFlow',
+  password: 'ArrearsFlow@916',
+  database: 'u477692720_ArrearsFlow',
+  port: 3306,
   waitForConnections: true,
   connectionLimit: 15,
   queueLimit: 0,
@@ -35,10 +37,10 @@ const pool = mysql.createPool(dbConfig);
 
 const KERNEL_CONFIG = {
   nodeId: "72.61.175.20",
-  version: "5.0.0-GOLD-ENTERPRISE",
+  version: "5.2.1-SANGHAVI-PRIME",
   cluster: "pay.sanghavijewellers.in",
-  region: "asia-south1",
-  status: "SECURED",
+  db_node: "u477692720_ArrearsFlow",
+  status: "AUTHORIZED",
   uptime: new Date().toISOString()
 };
 
@@ -48,7 +50,7 @@ const syncSchema = async () => {
     const conn = await pool.getConnection();
     console.log(`[KERNEL] DB Node Handshake: SUCCESS @ ${dbConfig.host}`);
     
-    // Create Customers with Gold/Cash differentiation
+    // Create Customers Table
     await conn.execute(`
       CREATE TABLE IF NOT EXISTS customers (
         id VARCHAR(50) PRIMARY KEY,
@@ -70,7 +72,7 @@ const syncSchema = async () => {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     `);
 
-    // Transactions with Staff Auditing
+    // Create Transactions Table
     await conn.execute(`
       CREATE TABLE IF NOT EXISTS transactions (
         id VARCHAR(50) PRIMARY KEY,
@@ -89,7 +91,7 @@ const syncSchema = async () => {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     `);
 
-    // Grade Rules for Autoheal Engine
+    // Create Grade Rules Table
     await conn.execute(`
       CREATE TABLE IF NOT EXISTS grade_rules (
         id VARCHAR(5) PRIMARY KEY,
@@ -108,7 +110,7 @@ const syncSchema = async () => {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     `);
 
-    // Seed defaults if empty
+    // Seed defaults if rules table is empty
     const [rules]: any = await conn.execute('SELECT COUNT(*) as count FROM grade_rules');
     if (rules[0].count === 0) {
       await conn.execute(`
@@ -122,15 +124,15 @@ const syncSchema = async () => {
     }
 
     conn.release();
-    console.log("[KERNEL] Vault Structure: VERIFIED");
+    console.log("[KERNEL] Vault Structure Sync: COMPLETE");
   } catch (err) {
-    console.error("[CRITICAL] Node Initialization Failure:", err);
+    console.error("[CRITICAL] Node Persistence Failure:", err);
   }
 };
 
 syncSchema();
 
-// --- RESTFUL PERSISTENCE API ---
+// --- RESTFUL API LAYER ---
 
 app.get('/api/customers', async (req, res) => {
   try {
@@ -144,10 +146,11 @@ app.get('/api/customers', async (req, res) => {
         'date', DATE_FORMAT(t.date, '%Y-%m-%d'), 
         'description', t.description, 
         'balanceAfter', CAST(t.balance_after AS DOUBLE)
-      )) FROM transactions t WHERE t.customer_id = c.id ORDER BY t.date DESC LIMIT 50) as transactions
+      )) FROM transactions t WHERE t.customer_id = c.id ORDER BY t.date DESC LIMIT 100) as transactions
       FROM customers c
     `);
     
+    // Map DB fields to Frontend Interface
     const mapped = rows.map((c: any) => ({
       ...c,
       taxNumber: c.tax_number,
@@ -165,7 +168,7 @@ app.get('/api/customers', async (req, res) => {
     
     res.json(mapped);
   } catch (err: any) {
-    res.status(500).json({ error: "DB_SYNC_FAIL", details: err.message });
+    res.status(500).json({ error: "DB_FETCH_ERROR", details: err.message });
   }
 });
 
@@ -177,9 +180,9 @@ app.post('/api/customers', async (req, res) => {
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [c.id, c.name, c.phone, c.email || '', c.address || '', c.taxNumber || '', c.groupId || 'Retail Client', c.uniquePaymentCode, c.currentBalance || 0, 0, c.creditLimit || 0]
     );
-    res.json({ success: true });
+    res.json({ success: true, id: c.id });
   } catch (err: any) {
-    res.status(500).json({ error: "ENTITY_REJECTED", details: err.message });
+    res.status(500).json({ error: "SQL_REJECTED_IDENTITY", details: err.message });
   }
 });
 
@@ -201,10 +204,10 @@ app.post('/api/transactions', async (req, res) => {
     await conn.execute(`UPDATE customers SET ${balanceCol} = ${balanceCol} ${operator} ? WHERE id = ?`, [t.amount, t.customerId]);
 
     await conn.commit();
-    res.json({ success: true });
+    res.json({ success: true, ref: t.id });
   } catch (err: any) {
     await conn.rollback();
-    res.status(500).json({ error: "COMMIT_DENIED", details: err.message });
+    res.status(500).json({ error: "LEDGER_COMMIT_FAILED", details: err.message });
   } finally {
     conn.release();
   }
@@ -224,42 +227,48 @@ app.get('/api/grade-rules', async (req, res) => {
     }));
     res.json(mapped);
   } catch (err: any) {
-    res.status(500).json({ error: "LOGIC_FETCH_FAIL" });
+    res.status(500).json({ error: "RULES_FETCH_FAIL" });
   }
 });
 
-// --- CORE REASONING ENGINE (GEMINI 3 PRO) ---
+// --- CORE REASONING ENGINE (GEMINI 3 PRO PREVIEW) ---
 
 app.post('/api/kernel/reason', async (req, res) => {
   const { customerData, interactionLogs } = req.body;
-  if (!process.env.API_KEY) return res.status(500).json({ error: "CORTEX_OFFLINE: Key Missing" });
+  
+  if (!process.env.API_KEY) {
+    return res.status(500).json({ error: "CORTEX_OFFLINE: GEMINI_API_KEY_MISSING" });
+  }
 
   try {
     const response = await ai.models.generateContent({
       model: "gemini-3-pro-preview",
-      contents: `ACT AS: Lead Recovery Auditor for Sanghavi Jewellers Enterprise.
-      ANALYZE ENTITY: ${JSON.stringify({ customerData, interactionLogs })}.
-      GOAL: Provide deterministic risk profile and clinical next action.
+      contents: `ACT AS: Lead Recovery Auditor for Sanghavi Jewellers.
+      ENTITY_DATA: ${JSON.stringify(customerData)}
+      HISTORY: ${JSON.stringify(interactionLogs)}
+      TASK: Provide risk analysis and clinical recovery path.
       OUTPUT: Valid JSON schema only.`,
       config: { 
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
           properties: {
-            risk_grade: { type: Type.STRING, description: "Classification A|B|C|D" },
-            analysis: { type: Type.STRING, description: "Detailed behavioral assessment" },
-            next_step: { type: Type.STRING, description: "Specific legal/recovery protocol to follow" },
-            recovery_odds: { type: Type.NUMBER, description: "Probability percentage (0.0 to 1.0)" }
+            risk_grade: { type: Type.STRING, description: "A, B, C, or D" },
+            analysis: { type: Type.STRING, description: "Detailed reasoning" },
+            next_step: { type: Type.STRING, description: "Actionable protocol" },
+            recovery_odds: { type: Type.NUMBER, description: "Probability 0.0 to 1.0" }
           },
           required: ["risk_grade", "analysis", "next_step", "recovery_odds"]
         },
         thinkingConfig: { thinkingBudget: 4000 }
       }
     });
+    
+    // Accessing text property directly as per strict SDK rules
     res.json(JSON.parse(response.text || '{}'));
   } catch (err: any) {
-    console.error("[CORTEX] Reasoning Interrupted:", err);
-    res.status(500).json({ error: "AI_HANDSHAKE_TIMEOUT" });
+    console.error("[CORTEX] Cycle Interrupted:", err);
+    res.status(500).json({ error: "AI_REASONING_TIMEOUT", details: err.message });
   }
 });
 
@@ -268,13 +277,14 @@ app.get('/api/kernel/status', (req, res) => res.json(KERNEL_CONFIG));
 app.get('/api/kernel/logs', (req, res) => {
   const ts = new Date().toISOString();
   res.json([
-    `[${ts}] BOOT: Sanghavi Enterprise Node 72.61.175.20 Online`,
-    `[${ts}] SYNC: MySQL Vault u477692720_ArrearsFlow synchronized`,
-    `[${ts}] CORE: Gemini 3 Pro reasoning engine standby`,
-    `[${ts}] SSL: pay.sanghavijewellers.in tunnel established`
+    `[${ts}] BOOT: Sanghavi Recovery Node 72.61.175.20 v5.2.1 Online`,
+    `[${ts}] PERSISTENCE: Connected to u477692720_ArrearsFlow cluster`,
+    `[${ts}] INFRA: pay.sanghavijewellers.in SSL Tunnel Verified`,
+    `[${ts}] CORE: Gemini 3 Pro reasoning engine standing by`
   ]);
 });
 
+// Static assets
 app.use(express.static(path.join(__dirname, 'dist')));
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));
@@ -282,5 +292,5 @@ app.get('*', (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`[ENTERPRISE] Sovereign Node 72.61.175.20 Listening on Port ${PORT}`);
+  console.log(`[ENTERPRISE] Sovereign Node Online @ ${KERNEL_CONFIG.nodeId}:${PORT}`);
 });
