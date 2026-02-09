@@ -15,6 +15,11 @@ View your app in AI Studio: https://ai.studio/apps/drive/15WC_yp3bBDWcQmUEp45r8K
 
 1. Install dependencies:
    `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
+2. Create a `.env` file (copy from `.env.example`) and set:
+   - `DB_USER`, `DB_PASSWORD`, `DB_NAME`
+   - `DB_HOST` and `DB_PORT` (optional; defaults to `127.0.0.1:3306`)
+   - `API_KEY` (Gemini API key)
+3. Create the MySQL schema:
+   - `mysql -u <user> -p < database.sql`
+4. Run the app:
    `npm run dev`
