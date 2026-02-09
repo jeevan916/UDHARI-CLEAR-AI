@@ -1,3 +1,4 @@
+
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
@@ -9,125 +10,107 @@ import mysql from 'mysql2/promise';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// --- HOSTINGER CLOUD CONFIGURATION ---
-// Targeting co-located environment config
-dotenv.config({ path: path.resolve('public_html/.builds/config/.env') });
+dotenv.config();
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// --- GEMINI 3 PRO INITIALIZATION ---
+// --- CORTEX ENGINE (Gemini 3 Pro) ---
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-// --- CO-LOCATED MYSQL VAULT (LOCAL LOOPBACK) ---
+// --- DATABASE PERSISTENCE LAYER ---
 const dbConfig = {
-  host: '127.0.0.1', // Low-latency local socket connection
+  host: process.env.DB_HOST || '127.0.0.1',
   user: process.env.DB_USER || 'u477692720_ArrearsFlow',
   password: process.env.DB_PASSWORD || 'ArrearsFlow@916',
-  database: process.env.DB_NAME || 'u477692720_ArrearsFlow',
+  database: process.env.DB_NAME || 'sanghavi_recovery',
   port: 3306,
   waitForConnections: true,
-  connectionLimit: 30,
+  connectionLimit: 50,
   enableKeepAlive: true,
   keepAliveInitialDelay: 10000
 };
 
 const pool = mysql.createPool(dbConfig);
 
-const KERNEL_STATUS = {
-  nodeId: "139.59.10.70",
-  cluster: "Hostinger Cloud Professional",
-  database_link: "127.0.0.1",
+const SYSTEM_IDENTITY = {
+  environment: "PRODUCTION_CORE",
+  version: "5.5.0-ENTERPRISE",
   status: "INITIALIZING",
-  version: "3.5.0-PRO"
+  region: "PRIMARY_CLUSTER"
 };
 
-// Initialize DB and ensure schema integrity
+// --- BOOT SEQUENCE ---
 const bootSystem = async () => {
   try {
     const conn = await pool.getConnection();
-    console.log(`[BOOT] VAULT_READY: Local connection to ${dbConfig.database} verified via 127.0.0.1`);
+    console.log(`[SYSTEM] DATABASE_LINK: Established.`);
     
-    // Core Schema Logic
+    // Core Ledger Schema Integrity
     await conn.execute(`CREATE TABLE IF NOT EXISTS customers (
-      id VARCHAR(50) PRIMARY KEY, name VARCHAR(255) NOT NULL, phone VARCHAR(20) NOT NULL UNIQUE,
+      id VARCHAR(50) PRIMARY KEY, name VARCHAR(255) NOT NULL, phone VARCHAR(20) UNIQUE NOT NULL,
       unique_payment_code VARCHAR(20) UNIQUE NOT NULL, current_balance DECIMAL(15,2) DEFAULT 0,
       current_gold_balance DECIMAL(15,3) DEFAULT 0, is_active BOOLEAN DEFAULT TRUE,
       grade VARCHAR(5) DEFAULT 'A'
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`);
 
-    await conn.execute(`CREATE TABLE IF NOT EXISTS transactions (
-      id VARCHAR(50) PRIMARY KEY, customer_id VARCHAR(50) NOT NULL,
-      type ENUM('credit', 'debit') NOT NULL, unit ENUM('money', 'gold') DEFAULT 'money',
-      amount DECIMAL(15,3) NOT NULL, date DATE NOT NULL, description TEXT,
-      balance_after DECIMAL(15,3), INDEX(customer_id)
-    ) ENGINE=InnoDB`);
-
-    KERNEL_STATUS.status = "OPERATIONAL";
+    SYSTEM_IDENTITY.status = "OPERATIONAL";
     conn.release();
   } catch (err: any) {
-    KERNEL_STATUS.status = "DEGRADED";
+    SYSTEM_IDENTITY.status = "DEGRADED";
     console.error(`[CRITICAL] BOOT_FAILURE: ${err.message}`);
   }
 };
 
 bootSystem();
 
-// --- AUTHORITY API LAYER ---
+// --- API ROUTES ---
 
-app.get('/api/kernel/health', (req, res) => res.json(KERNEL_STATUS));
+app.get('/api/system/health', (req, res) => res.json(SYSTEM_IDENTITY));
 
 app.get('/api/customers', async (req, res) => {
   try {
-    const [rows]: any = await pool.execute('SELECT * FROM customers');
-    // Map data for enterprise-grade UI consumption
-    res.json(rows.map((r: any) => ({
-      ...r,
-      enabledGateways: { razorpay: true, setu: true },
-      contactList: [{ id: 'primary', value: r.phone, type: 'mobile', isPrimary: true }],
-      addressList: [], fingerprints: [], transactions: []
-    })));
+    const [rows]: any = await pool.execute('SELECT * FROM customers ORDER BY current_balance DESC');
+    res.json(rows);
   } catch (err: any) {
-    res.status(500).json({ error: "VAULT_ACCESS_ERROR", details: err.message });
+    res.status(500).json({ error: "LEDGER_READ_ERROR", details: err.message });
   }
 });
 
 app.post('/api/kernel/reason', async (req, res) => {
-  const { customerData, interactionLogs } = req.body;
-  if (!process.env.API_KEY) return res.status(503).json({ error: "CORTEX_OFFLINE" });
+  const { customerData, interactions } = req.body;
+  if (!process.env.API_KEY) return res.status(503).json({ error: "INTELLIGENCE_OFFLINE" });
 
   try {
     const response = await ai.models.generateContent({
       model: "gemini-3-pro-preview",
-      contents: `PERFORM AUDIT: ${JSON.stringify({ customerData, interactionLogs })}. Role: Chief Recovery Officer. Task: Generate recovery roadmap in JSON.`,
-      config: { 
+      contents: `PERFORM FINANCIAL AUDIT: ${JSON.stringify({ customerData, interactions })}. Task: Generate deterministic recovery roadmap in JSON.`,
+      config: {
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
           properties: {
-            riskScore: { type: Type.NUMBER, description: "Percentage of loss risk 0-100" },
-            riskLevel: { type: Type.STRING, description: "LOW, MEDIUM, HIGH, CRITICAL" },
-            analysis: { type: Type.STRING, description: "Detailed behavioral analysis" },
-            recommendedAction: { type: Type.STRING, description: "Immediate next step" }
+            risk_score: { type: Type.NUMBER, description: "Scale 0-100" },
+            risk_level: { type: Type.STRING, description: "LOW, MEDIUM, HIGH, CRITICAL" },
+            analysis: { type: Type.STRING },
+            action_plan: { type: Type.STRING }
           },
-          required: ["riskScore", "riskLevel", "analysis", "recommendedAction"]
+          required: ["risk_score", "risk_level", "analysis", "action_plan"]
         },
-        thinkingConfig: { thinkingBudget: 4000 } 
+        thinkingConfig: { thinkingBudget: 4000 }
       }
     });
-    
-    // Proper extraction from property per instructions
+
     res.json(JSON.parse(response.text || '{}'));
   } catch (err: any) {
-    console.error("[CORTEX] Reasoning Failure:", err);
-    res.status(500).json({ error: "REASONING_INTERRUPTED" });
+    console.error(`[CORTEX] Reasoning Failure: ${err.message}`);
+    res.status(500).json({ error: "REASONING_CYCLE_FAILED" });
   }
 });
 
-// Static hosting for Hostinger Deployment
 app.use(express.static(path.join(__dirname, 'dist')));
 app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'dist', 'index.html')));
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`[SOVEREIGN] Hostinger Node 139.59.10.70 operational on port ${PORT}`));
+app.listen(PORT, () => console.log(`[CORE] Enterprise Platform Active on Port ${PORT}`));

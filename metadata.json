@@ -1,9 +1,9 @@
 {
-  "name": "Sanghavi Jewellers | Sovereign Recovery Node",
-  "description": "Enterprise-grade debt recovery CRM with co-located MySQL vault, Gemini 3 Pro Cortex, and Deepvue Forensic Intelligence.",
+  "name": "Sanghavi Jewellers | Enterprise Recovery Platform",
+  "description": "High-fidelity debt recovery and financial risk management system powered by Gemini 3 Pro.",
   "requestFramePermissions": [
-    "geolocation",
     "camera",
-    "microphone"
+    "microphone",
+    "geolocation"
   ]
 }

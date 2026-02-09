@@ -1,5 +1,6 @@
+
 import React, { useState } from 'react';
-import { Lock, Mail, ArrowRight, ShieldCheck, AlertCircle, KeyRound, Smartphone, Landmark } from 'lucide-react';
+import { Lock, Mail, ArrowRight, AlertCircle, KeyRound, Smartphone, Landmark } from 'lucide-react';
 import { User } from '../types';
 
 interface LoginScreenProps {
@@ -25,15 +26,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
           email: email,
           role: 'admin',
           avatarUrl: 'JM'
-        });
-      } 
-      else if (email.toLowerCase() === 'agent@arrearsflow.com' && password === 'agent123') {
-        onLogin({
-          id: 'usr_agent_04',
-          name: 'Rahul Field',
-          email: email,
-          role: 'staff',
-          avatarUrl: 'RF'
         });
       } else {
         setError('Invalid credentials. Access denied.');
@@ -65,16 +57,16 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
             </div>
             <h1 className="text-5xl font-black text-white tracking-tighter mb-4">Sanghavi <span className="text-amber-500 italic font-medium">Jewellers</span></h1>
             <p className="text-slate-400 text-lg max-w-md leading-relaxed font-medium">
-              Sovereign Recovery Node v3.5.0 <br/>
-              <span className="text-[10px] font-black uppercase tracking-[0.5em] text-blue-500">Hostinger Cloud Professional</span>
+              Enterprise Recovery Platform <br/>
+              <span className="text-[10px] font-black uppercase tracking-[0.5em] text-blue-500">Secure Production Environment</span>
             </p>
           </div>
           
           <div className="space-y-4">
              <div className="flex items-center gap-4 text-slate-500 text-xs font-black uppercase tracking-widest">
-                <span>Cluster Node: 139.59.10.70</span>
+                <span>System Status: Operational</span>
                 <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_8px_#10b981]"></div>
-                <span>Secured via local-loopback</span>
+                <span>Secured Protocol</span>
              </div>
           </div>
         </div>
@@ -84,12 +76,12 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
         <div className="w-full max-w-md bg-white/5 p-10 rounded-[2.5rem] border border-white/10 shadow-2xl backdrop-blur-sm">
           <div className="text-center mb-10">
              <h2 className="text-3xl font-black text-white uppercase tracking-tighter">Authority Entrance</h2>
-             <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.3em] mt-2">Initialize Secure Node Session</p>
+             <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.3em] mt-2">Initialize Secure Session</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label className="block text-[10px] font-black text-slate-500 uppercase mb-2 ml-1 tracking-widest">Node ID / Corporate Email</label>
+              <label className="block text-[10px] font-black text-slate-500 uppercase mb-2 ml-1 tracking-widest">Corporate Identity</label>
               <div className="relative">
                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600" size={18} />
                 <input
@@ -132,7 +124,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
               {loading ? (
                 <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
               ) : (
-                <>Establish Link <ArrowRight size={18} /></>
+                <>Establish Secure Link <ArrowRight size={18} /></>
               )}
             </button>
             
@@ -149,14 +141,14 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
                  onClick={() => fillCredentials('staff')}
                  className="py-3 text-[9px] bg-slate-800 text-slate-300 font-black uppercase tracking-widest hover:bg-slate-700 rounded-xl transition-colors border border-white/5 flex items-center justify-center gap-2"
                >
-                 <Smartphone size={14}/> Agent Node
+                 <Smartphone size={14}/> Agent View
                </button>
             </div>
           </form>
 
           <div className="mt-10 text-center border-t border-white/5 pt-6">
             <p className="text-[8px] font-black text-slate-600 uppercase tracking-[0.4em]">
-              Node Sync: 139.59.10.70 • AES-256 Enabled
+              AES-256 Bit Encryption • Primary Core Sync
             </p>
           </div>
         </div>

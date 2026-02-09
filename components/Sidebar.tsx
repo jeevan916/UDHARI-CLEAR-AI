@@ -1,8 +1,9 @@
+
 import React, { useState } from 'react';
 import { 
   LayoutDashboard, Users, MessageSquare, Briefcase, 
-  Layers, ChevronDown, LogOut, X, Bot, HeartPulse, PhoneCall, BrainCircuit, FileText, Ghost,
-  ChevronLeft, ChevronRight, Landmark, Server, Settings
+  Layers, ChevronDown, LogOut, X, Bot, PhoneCall, BrainCircuit, Ghost,
+  ChevronLeft, ChevronRight, Landmark, Server
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -21,13 +22,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
 
+  // Define the toggleCollapse function to manage the sidebar's collapsed state
+  const toggleCollapse = () => setIsCollapsed(p => !p);
+
   const handleNavigation = (view: string) => {
     setActiveView(view);
     onCloseMobile();
-  };
-
-  const toggleCollapse = () => {
-    setIsCollapsed(!isCollapsed);
   };
 
   const SidebarBtn = ({ icon, label, active, onClick }: any) => (
@@ -96,7 +96,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             {!isCollapsed && (
               <div className="overflow-hidden">
                  <span className="font-black text-white uppercase text-xs tracking-tighter block truncate">Sanghavi Jewellers</span>
-                 <span className="text-[7px] font-black text-blue-500 uppercase tracking-widest mt-0.5 block">Hostinger Node 139.59.10.70</span>
+                 <span className="text-[7px] font-black text-blue-500 uppercase tracking-widest mt-0.5 block">Enterprise Platform</span>
               </div>
             )}
           </div>
@@ -115,15 +115,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <SidebarBtn icon={<Users size={18}/>} label="Entity Master" active={activeView === 'customers'} onClick={() => handleNavigation('customers')} />
 
           <SidebarGroup icon={<MessageSquare size={18}/>} label="Protocol Bridge" id="protocols">
-            <button onClick={() => handleNavigation('whatsapp-chat')} className={`w-full text-left py-2 px-3 rounded-lg font-black text-[9px] uppercase tracking-widest ${activeView === 'whatsapp-chat' ? 'bg-emerald-500/10 text-emerald-400' : 'text-slate-500 hover:text-white'}`}>Meta Hub</button>
-            <button onClick={() => handleNavigation('whatsapp-config')} className={`w-full text-left py-2 px-3 rounded-lg font-black text-[9px] uppercase tracking-widest ${activeView === 'whatsapp-config' ? 'bg-emerald-500/10 text-emerald-400' : 'text-slate-500 hover:text-white'}`}>Cloud Node</button>
+            <button onClick={() => handleNavigation('whatsapp-chat')} className={`w-full text-left py-2 px-3 rounded-lg font-black text-[9px] uppercase tracking-widest ${activeView === 'whatsapp-chat' ? 'bg-emerald-500/10 text-emerald-400' : 'text-slate-500 hover:text-white'}`}>Communication Hub</button>
+            <button onClick={() => handleNavigation('whatsapp-config')} className={`w-full text-left py-2 px-3 rounded-lg font-black text-[9px] uppercase tracking-widest ${activeView === 'whatsapp-config' ? 'bg-emerald-500/10 text-emerald-400' : 'text-slate-500 hover:text-white'}`}>Infrastructure</button>
             <button onClick={() => handleNavigation('call-logs')} className={`w-full text-left py-2 px-3 rounded-lg font-black text-[9px] uppercase tracking-widest ${activeView === 'call-logs' ? 'bg-blue-500/10 text-blue-400' : 'text-slate-500 hover:text-white'}`}>Voice Logs</button>
           </SidebarGroup>
 
           <SidebarGroup icon={<Layers size={18}/>} label="Risk Architect" id="risk">
             <button onClick={() => handleNavigation('grades')} className={`w-full text-left py-2 px-3 rounded-lg font-black text-[9px] uppercase tracking-widest ${activeView === 'grades' ? 'bg-blue-500/10 text-blue-400' : 'text-slate-500 hover:text-white'}`}>Engine Rules</button>
             <button onClick={() => handleNavigation('template-architect')} className={`w-full text-left py-2 px-3 rounded-lg font-black text-[9px] uppercase tracking-widest ${activeView === 'template-architect' ? 'bg-blue-500/10 text-blue-400' : 'text-slate-500 hover:text-white'}`}>Artifacts</button>
-            <button onClick={() => handleNavigation('integrations')} className={`w-full text-left py-2 px-3 rounded-lg font-black text-[9px] uppercase tracking-widest ${activeView === 'integrations' ? 'bg-blue-500/10 text-blue-400' : 'text-slate-500 hover:text-white'}`}>Infrastructure</button>
           </SidebarGroup>
           
           {isAdmin && (
@@ -138,12 +137,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
            <div className={`rounded-xl border border-white/5 bg-white/5 p-3 ${isCollapsed ? 'hidden' : ''}`}>
               <div className="flex items-center gap-2 mb-1">
                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
-                 <span className="text-[9px] font-black uppercase text-slate-400 truncate">139.59.10.70</span>
+                 <span className="text-[9px] font-black uppercase text-slate-400 truncate">PRODUCTION_CORE</span>
               </div>
-              <p className="text-[8px] font-black text-slate-600 uppercase">LOCAL VAULT: 127.0.0.1</p>
+              <p className="text-[8px] font-black text-slate-600 uppercase">LEDGER: SECURE_SYNC</p>
            </div>
            <button onClick={onLogout} className="w-full flex items-center justify-center gap-2 p-3 text-rose-500 hover:bg-rose-500/10 rounded-xl transition-all font-black uppercase text-[10px] tracking-widest">
-             <LogOut size={16}/> {!isCollapsed && "Disconnect Node"}
+             <LogOut size={16}/> {!isCollapsed && "Logout Session"}
            </button>
         </div>
       </aside>

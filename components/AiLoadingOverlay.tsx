@@ -9,16 +9,16 @@ export const AiLoadingOverlay: React.FC<{ isAdmin: boolean }> = ({ isAdmin }) =>
          <div className="absolute inset-0 bg-blue-500/20 blur-[100px] animate-pulse"></div>
       </div>
       <h3 className="text-7xl font-black text-white uppercase tracking-[0.8em] mb-10 leading-none">
-        {isAdmin ? 'ROOT AUTHORITY' : 'ADVISORY NODE'}
+        {isAdmin ? 'SYSTEM AUTHORITY' : 'REASONING...'}
       </h3>
       <div className="flex flex-col items-center gap-6">
          <p className="text-blue-300/80 font-mono text-[14px] uppercase tracking-[0.6em] animate-bounce font-black">
-           {isAdmin ? 'SYNCHRONIZING DETERMINISTIC LEDGER CLUSTERS...' : 'PARSING BEHAVIORAL SNAPSHOTS...'}
+           {isAdmin ? 'SYNCHRONIZING DETERMINISTIC LEDGER...' : 'PARSING BEHAVIORAL SNAPSHOTS...'}
          </p>
          <div className="w-96 h-1.5 bg-white/10 rounded-full overflow-hidden border border-white/5">
             <div className={`h-full ${isAdmin ? 'bg-amber-400' : 'bg-blue-600'} animate-progress-fast`}></div>
          </div>
-         <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mt-10">Node: 139.59.10.70 Kernel Handshake [v4.2]</p>
+         <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mt-10">Cortex Engine Handshake [v5.5]</p>
       </div>
    </div>
 );

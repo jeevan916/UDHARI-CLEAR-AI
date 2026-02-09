@@ -1,30 +1,83 @@
-import React from 'react';
-import { Terminal } from 'lucide-react';
 
-export const TerminalConsole: React.FC<{ logs: string[] }> = ({ logs }) => (
-  <div className="bg-[#0d1117] p-6 md:p-8 rounded-[2rem] shadow-2xl overflow-hidden flex flex-col border border-white/5 h-full relative font-mono">
-    <div className="flex-1 text-blue-400/90 text-[10px] md:text-xs space-y-2 overflow-y-auto custom-scrollbar">
-      <div className="text-slate-600 mb-4 border-b border-white/5 pb-2">
-        <p>ArrearsFlow Sovereign Kernel v3.5.0</p>
-        <p>Authenticated SJ_ROOT_ACCESS</p>
-        <p>Secure Tunnel: 139.59.10.70:3000</p>
-        <p>Local DB: 127.0.0.1 (Colocated)</p>
-      </div>
-      {logs.map((l, i) => (
-        <div key={i} className="flex gap-3 break-all animate-in slide-in-from-left-1">
-          <span className="opacity-20 shrink-0 select-none">[{i}]</span>
-          <span className={l.includes('ERROR') || l.includes('FAIL') ? 'text-rose-500' : l.includes('SUCCESS') ? 'text-emerald-400' : ''}>{l}</span>
+import React, { useRef, useEffect } from 'react';
+import { Terminal, Activity, Circle, Server } from 'lucide-react';
+
+export const TerminalConsole: React.FC<{ logs: string[] }> = ({ logs }) => {
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [logs]);
+
+  return (
+    <div className="bg-[#010409] h-full rounded-[4rem] border border-white/5 shadow-[0_35px_60px_-15px_rgba(0,0,0,0.6)] flex flex-col overflow-hidden font-mono relative group">
+      
+      {/* Header */}
+      <div className="bg-white/5 px-10 py-6 border-b border-white/5 flex justify-between items-center shrink-0 backdrop-blur-2xl">
+        <div className="flex items-center gap-4">
+          <Terminal size={20} className="text-emerald-500 animate-pulse" />
+          <div>
+             <span className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-300">System Monitor</span>
+             <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest mt-0.5">Enterprise Logic Kernel v5.5</p>
+          </div>
         </div>
-      ))}
-      <div className="flex items-center gap-3 text-white pt-4">
-        <span className="text-blue-500 font-bold">root@node-139-59-10-70:~#</span>
-        <span className="animate-pulse w-1.5 h-4 bg-blue-500 shadow-[0_0_10px_#00A3FF]"></span>
+        <div className="flex gap-2.5">
+          <Circle size={10} className="fill-rose-500 text-rose-500 shadow-[0_0_10px_#f43f5e]" />
+          <Circle size={10} className="fill-amber-500 text-amber-500 shadow-[0_0_10px_#f59e0b]" />
+          <Circle size={10} className="fill-emerald-500 text-emerald-500 shadow-[0_0_10px_#10b981]" />
+        </div>
+      </div>
+      
+      {/* Body */}
+      <div className="p-10 flex-1 overflow-y-auto custom-scrollbar text-[11px] leading-relaxed space-y-3 bg-black/20" ref={scrollRef}>
+        <div className="text-slate-600 mb-8 border-b border-white/5 pb-6 space-y-1.5">
+           <p className="text-blue-500 font-black tracking-[0.2em]">--- SYSTEM BOOT SEQUENCE ---</p>
+           <div className="flex justify-between items-center opacity-70">
+              <span>ENVIRONMENT:</span>
+              <span className="text-blue-400 font-bold">PRODUCTION_CORE</span>
+           </div>
+           <div className="flex justify-between items-center opacity-70">
+              <span>LEDGER_LINK:</span>
+              <span className="text-emerald-400 font-bold">ACTIVE (SYNCED)</span>
+           </div>
+           <div className="flex justify-between items-center opacity-70">
+              <span>CORTEX_ENGINE:</span>
+              <span className="text-amber-400 font-bold">GEMINI_3_PRO_ACTIVE</span>
+           </div>
+           <p className="text-emerald-500 mt-4 font-black border border-emerald-500/20 bg-emerald-500/5 px-3 py-1.5 rounded-lg w-fit">
+             STATUS: NOMINAL
+           </p>
+        </div>
+
+        {logs.map((log, i) => (
+          <div key={i} className="flex gap-4 animate-in slide-in-from-left-4 duration-300 group/log hover:bg-white/5 p-1 rounded transition-colors">
+             <span className="text-slate-700 shrink-0 select-none group-hover/log:text-slate-500">
+                [{new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}]
+             </span>
+             <span className={`break-all font-bold ${
+                log.includes('ERR') || log.includes('FAIL') ? 'text-rose-400' : 
+                log.includes('OK') || log.includes('SYNC') || log.includes('COMPLETE') ? 'text-emerald-400' : 
+                log.includes('AUDIT') || log.includes('REASON') ? 'text-amber-400' : 
+                'text-slate-300'
+             }`}>
+               {log}
+             </span>
+          </div>
+        ))}
+        
+        <div className="flex items-center gap-3 pt-6">
+           <span className="text-blue-500 font-black flex items-center gap-2">
+              <Server size={12}/> system@primary-core:~$
+           </span>
+           <span className="w-2.5 h-5 bg-emerald-500 animate-pulse shadow-[0_0_12px_#10b981]"></span>
+        </div>
+      </div>
+
+      <div className="absolute bottom-8 right-12 opacity-10 pointer-events-none group-hover:opacity-20 transition-opacity">
+        <Activity size={180} className="text-blue-500" />
       </div>
     </div>
-    <div className="absolute top-4 right-6 flex gap-2 opacity-30">
-       <div className="w-2.5 h-2.5 rounded-full bg-rose-500"></div>
-       <div className="w-2.5 h-2.5 rounded-full bg-amber-500"></div>
-       <div className="w-2.5 h-2.5 rounded-full bg-emerald-500"></div>
-    </div>
-  </div>
-);
+  );
+};
