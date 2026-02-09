@@ -1,4 +1,5 @@
--- Sanghavi Jewellers Recovery Node Schema v3.1
+
+-- Sanghavi Jewellers Recovery Node Schema v4.0 (Enterprise Scaled)
 -- Optimized for MySQL 8.0+
 
 CREATE DATABASE IF NOT EXISTS sanghavi_recovery;
@@ -20,11 +21,13 @@ CREATE TABLE IF NOT EXISTS customers (
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    INDEX (unique_payment_code),
-    INDEX (phone)
+    INDEX idx_upc (unique_payment_code),
+    INDEX idx_phone (phone),
+    INDEX idx_name (name)
 );
 
 -- 2. Transactions Ledger (Double Entry Ready)
+-- Added indices for global performance (date, type)
 CREATE TABLE IF NOT EXISTS transactions (
     id VARCHAR(50) PRIMARY KEY,
     customer_id VARCHAR(50) NOT NULL,
@@ -38,7 +41,9 @@ CREATE TABLE IF NOT EXISTS transactions (
     balance_after DECIMAL(15, 3),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE,
-    INDEX (customer_id, date)
+    INDEX idx_cust_date (customer_id, date),
+    INDEX idx_global_date (date),
+    INDEX idx_type_unit (type, unit)
 );
 
 -- 3. Communication Logs
@@ -49,13 +54,13 @@ CREATE TABLE IF NOT EXISTS communication_logs (
     content TEXT,
     timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     status VARCHAR(50),
-    duration INT DEFAULT 0, -- Seconds
+    duration INT DEFAULT 0,
     outcome VARCHAR(100),
     FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE,
-    INDEX (customer_id, timestamp)
+    INDEX idx_cust_ts (customer_id, timestamp)
 );
 
--- 4. Dynamic Grade Rules (Autoheal™ Engine)
+-- 4. Dynamic Grade Rules
 CREATE TABLE IF NOT EXISTS grade_rules (
     id VARCHAR(5) PRIMARY KEY,
     label VARCHAR(100) NOT NULL,
@@ -70,22 +75,6 @@ CREATE TABLE IF NOT EXISTS grade_rules (
     sms BOOLEAN DEFAULT FALSE,
     template_id VARCHAR(50),
     frequency_days INT DEFAULT 30
-);
-
--- 5. Digital Fingerprints
-CREATE TABLE IF NOT EXISTS digital_fingerprints (
-    id VARCHAR(50) PRIMARY KEY,
-    customer_id VARCHAR(50) NOT NULL,
-    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    event_type VARCHAR(50) NOT NULL,
-    ip_address VARCHAR(45),
-    device_model VARCHAR(100),
-    os VARCHAR(50),
-    browser VARCHAR(50),
-    city VARCHAR(100),
-    country VARCHAR(100),
-    provider VARCHAR(50),
-    FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
 );
 
 -- Seed Default Rules
