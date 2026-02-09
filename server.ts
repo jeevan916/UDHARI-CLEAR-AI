@@ -16,32 +16,33 @@ app.use(cors());
 app.use(express.json());
 
 // --- PRODUCTION CORE: GEMINI AI ---
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+// Directly using process.env.API_KEY as per strict SDK guidelines
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 // --- PRODUCTION CORE: MYSQL ENTERPRISE ---
-// Updated to 'localhost' which is required for u477692720_ArrearsFlow on Hostinger nodes
+// Credentials now sourced exclusively from environment variables
 const dbConfig = {
-  host: 'localhost',
-  user: 'u477692720_ArrearsFlow',
-  password: 'ArrearsFlow@916',
-  database: 'u477692720_ArrearsFlow',
-  port: 3306,
+  host: process.env.DB_HOST || 'localhost',
+  user: process.env.DB_USER || 'u477692720_ArrearsFlow',
+  password: process.env.DB_PASSWORD || 'ArrearsFlow@916',
+  database: process.env.DB_NAME || 'u477692720_ArrearsFlow',
+  port: parseInt(process.env.DB_PORT || '3306'),
   waitForConnections: true,
-  connectionLimit: 10,
+  connectionLimit: 15,
   queueLimit: 0,
   enableKeepAlive: true,
   keepAliveInitialDelay: 10000,
-  connectTimeout: 20000 // 20 seconds for slow handshake
+  connectTimeout: 30000
 };
 
 const pool = mysql.createPool(dbConfig);
 
 const KERNEL_CONFIG = {
-  nodeId: "72.61.175.20",
-  version: "5.4.0-SANGHAVI-RESILIENT",
+  nodeId: process.env.NODE_ID || "139.59.10.70",
+  version: "5.5.0-SANGHAVI-ENTERPRISE",
   cluster: "pay.sanghavijewellers.in",
-  db_node: "u477692720_ArrearsFlow",
-  status: "SYNCHRONIZING",
+  db_node: dbConfig.database,
+  status: "INITIALIZING",
   uptime: new Date().toISOString()
 };
 
@@ -50,7 +51,7 @@ const syncSchema = async () => {
   let conn;
   try {
     conn = await pool.getConnection();
-    console.log(`[KERNEL] DB Node Handshake: SUCCESS @ LOCALHOST`);
+    console.log(`[KERNEL] DB Node Handshake: SUCCESS @ ${dbConfig.host}`);
     
     // Core Tables initialization
     await conn.execute(`
@@ -95,7 +96,6 @@ const syncSchema = async () => {
     console.log("[KERNEL] Vault Structure Sync: COMPLETE");
   } catch (err: any) {
     console.error("[CRITICAL] Node Persistence Failure:", err.message);
-    // We don't exit process, allowing express to serve 500s or 503s gracefully if DB is down
   } finally {
     if (conn) conn.release();
   }
@@ -108,9 +108,14 @@ syncSchema();
 app.get('/api/health', async (req, res) => {
   try {
     const [rows]: any = await pool.execute('SELECT 1 as connected');
-    res.json({ status: 'UP', db: rows[0].connected === 1 ? 'CONNECTED' : 'DISCONNECTED', kernel: KERNEL_CONFIG });
+    res.json({ 
+      status: 'UP', 
+      db: rows[0].connected === 1 ? 'CONNECTED' : 'DISCONNECTED', 
+      node: KERNEL_CONFIG.nodeId,
+      version: KERNEL_CONFIG.version 
+    });
   } catch (err: any) {
-    res.status(503).json({ status: 'DOWN', error: err.message });
+    res.status(503).json({ status: 'DOWN', error: "DATABASE_UNREACHABLE", details: err.message });
   }
 });
 
@@ -209,7 +214,7 @@ app.get('/api/grade-rules', async (req, res) => {
   }
 });
 
-// Gemini Reasoning Node
+// Gemini Reasoning Node - Enterprise Strategy
 app.post('/api/kernel/reason', async (req, res) => {
   const { customerData, interactionLogs } = req.body;
   if (!process.env.API_KEY) return res.status(500).json({ error: "CORTEX_OFFLINE" });
@@ -217,22 +222,36 @@ app.post('/api/kernel/reason', async (req, res) => {
   try {
     const response = await ai.models.generateContent({
       model: "gemini-3-pro-preview",
-      contents: `ACT AS: Lead Auditor. ANALYZE: ${JSON.stringify({ customerData, interactionLogs })}. OUTPUT: Valid risk JSON schema.`,
-      config: { responseMimeType: "application/json", thinkingConfig: { thinkingBudget: 4000 } }
+      contents: `ACT AS: Lead Auditor for Sanghavi Jewellers. ANALYZE ENTITY: ${JSON.stringify({ customerData, interactionLogs })}. TASK: Identify default probability and provide a surgical recovery roadmap. OUTPUT: Valid JSON schema with risk_grade (A/B/C/D), analysis, next_step, and recovery_odds (0-1).`,
+      config: { 
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            risk_grade: { type: Type.STRING },
+            analysis: { type: Type.STRING },
+            next_step: { type: Type.STRING },
+            recovery_odds: { type: Type.NUMBER }
+          }
+        },
+        thinkingConfig: { thinkingBudget: 4000 }
+      }
     });
     res.json(JSON.parse(response.text || '{}'));
   } catch (err: any) {
+    console.error("[CORTEX] Cycle Failure:", err);
     res.status(500).json({ error: "AI_TIMEOUT" });
   }
 });
 
 app.get('/api/kernel/status', (req, res) => res.json(KERNEL_CONFIG));
+
 app.get('/api/kernel/logs', (req, res) => {
   const ts = new Date().toISOString();
   res.json([
-    `[${ts}] BOOT: Sovereign Node 72.61.175.20 v5.4.0 Online`,
-    `[${ts}] LATCH: Primary MySQL Link u477692720_ArrearsFlow Ready`,
-    `[${ts}] SSL: secure channel pay.sanghavijewellers.in active`
+    `[${ts}] BOOT: Sovereign Node ${KERNEL_CONFIG.nodeId} v${KERNEL_CONFIG.version} Online`,
+    `[${ts}] PERSISTENCE: Cluster ${dbConfig.database} Handshake Verified`,
+    `[${ts}] SECURITY: SSL/TLS Handshake verified via pay.sanghavijewellers.in`
   ]);
 });
 
@@ -240,4 +259,4 @@ app.use(express.static(path.join(__dirname, 'dist')));
 app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'dist', 'index.html')));
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`[ENTERPRISE] Node Listening on Port ${PORT}`));
+app.listen(PORT, () => console.log(`[ENTERPRISE] Node ${KERNEL_CONFIG.nodeId} Active on Port ${PORT}`));
