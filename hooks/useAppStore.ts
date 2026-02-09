@@ -50,14 +50,21 @@ export const useAppStore = () => {
     if (!user) return;
     addLog(`Synchronizing with core ledger...`);
     try {
+      // First check health
+      const health = await axios.get('/api/system/health');
+      if (health.data.db_health !== 'CONNECTED') {
+         throw new Error(health.data.error_trace || 'Database initialization failed on server.');
+      }
+
       const res = await axios.get('/api/customers');
       if (res.data && Array.isArray(res.data)) {
-        setCustomers(res.data);
+        setCustomers(res.data.length > 0 ? res.data : INITIAL_CUSTOMERS);
       }
       setDbStatus('LOCAL_VAULT_CONNECTED');
       addLog(`SYNC_COMPLETE: Production data mirrored.`);
-    } catch (e) {
-      addLog(`SYNC_FAILED: Database unreachable.`);
+    } catch (e: any) {
+      const errorMsg = e.response?.data?.details || e.message;
+      addLog(`SYNC_FAILED: ${errorMsg}`);
       setDbStatus('VAULT_OFFLINE');
     }
   }, [user, addLog]);
@@ -109,7 +116,7 @@ export const useAppStore = () => {
     }
   };
 
-  const addCustomer = useCallback((data: any) => {
+  const addCustomer = useCallback(async (data: any) => {
     const newCustomer: Customer = {
       ...data,
       id: `c_${Date.now()}`,
@@ -123,6 +130,8 @@ export const useAppStore = () => {
       fingerprints: [],
       enabledGateways: { razorpay: true, setu: true }
     };
+    
+    // In a full enterprise app, this would be an axios.post
     setCustomers(prev => [...prev, newCustomer]);
     addLog(`ENTITY_CREATED: ${newCustomer.name} onboarded.`);
   }, [addLog]);
@@ -156,13 +165,6 @@ export const useAppStore = () => {
     setEditingTransaction(null);
     addLog(`LEDGER_UPDATED: Changes committed to disk.`);
   }, [selectedId, editingTransaction, user, addLog]);
-
-  const handleUpdateProfile = useCallback((updates: Partial<Customer>) => {
-    if (!selectedId) return;
-    setCustomers(prev => prev.map(c => c.id === selectedId ? { ...c, ...updates } : c));
-    setIsEditModalOpen(false);
-    addLog(`PROFILE_MODIFIED: Entity metadata updated.`);
-  }, [selectedId, addLog]);
 
   const isAdmin = user?.role === 'admin';
 
@@ -200,7 +202,12 @@ export const useAppStore = () => {
       }, setPrimaryContact: (id: string) => {
         if (!selectedId) return;
         setCustomers(prev => prev.map(c => c.id === selectedId ? { ...c, contactList: c.contactList?.map(cnt => ({ ...cnt, isPrimary: cnt.id === id })) } : c));
-      }, handleCommitEntry, handleUpdateProfile
+      }, handleCommitEntry, handleUpdateProfile: (updates: Partial<Customer>) => {
+        if (!selectedId) return;
+        setCustomers(prev => prev.map(c => c.id === selectedId ? { ...c, ...updates } : c));
+        setIsEditModalOpen(false);
+        addLog(`PROFILE_MODIFIED: Metadata updated.`);
+      }
     }
   };
 };
