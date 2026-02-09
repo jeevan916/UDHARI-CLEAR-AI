@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { 
   Customer, User, AiStrategy, Transaction, Template, 
@@ -54,54 +54,56 @@ export const useAppStore = () => {
     });
   }, [customers, searchTerm, filterGrade, gradeRules, callLogs]);
 
-  const addLog = (msg: string) => {
+  const addLog = useCallback((msg: string) => {
     const timestamp = new Date().toLocaleTimeString();
     setSystemLogs(prev => [`[${timestamp}] ${msg}`, ...prev].slice(0, 60));
-  };
+  }, []);
 
-  // --- NODE INITIALIZATION & SYNC ---
+  // --- VAULT INITIALIZATION & RESILIENCE ---
+  const initializeData = useCallback(async () => {
+    if (!user) return;
+    
+    setDbStatus('RECONNECTING');
+    addLog(`INIT: Handshake requested by ${user.name}`);
+    
+    try {
+      const [custRes, ruleRes, logsRes] = await Promise.all([
+        axios.get('/api/customers').catch(err => err.response),
+        axios.get('/api/grade-rules').catch(err => err.response),
+        getLiveLogs()
+      ]);
+
+      if (custRes?.status === 200) {
+        setCustomers(custRes.data);
+        setDbStatus('CONNECTED');
+        addLog("VAULT: Database clusters synchronized.");
+      } else {
+        setCustomers(INITIAL_CUSTOMERS);
+        setDbStatus('DISCONNECTED');
+        addLog("VAULT_FAIL: Database unreachable (503). Using Local cache.");
+      }
+
+      if (ruleRes?.status === 200) {
+        setGradeRules(ruleRes.data);
+      } else {
+        setGradeRules(INITIAL_GRADE_RULES);
+      }
+
+      setSystemLogs(prev => [...logsRes, ...prev]);
+    } catch (e: any) {
+      console.error("Critical Node Failure:", e);
+      setDbStatus('DISCONNECTED');
+      setCustomers(INITIAL_CUSTOMERS);
+      setGradeRules(INITIAL_GRADE_RULES);
+      addLog("NODE_OFFLINE: Remote logic clusters timed out.");
+    }
+  }, [user, addLog]);
+
   useEffect(() => {
     if (user) {
-      addLog(`HANDSHAKE: Authenticating root identity ${user.name}`);
-      const initializeData = async () => {
-         try {
-            setDbStatus('RECONNECTING');
-            const [custRes, ruleRes, liveLogs] = await Promise.all([
-               axios.get('/api/customers').catch(e => e.response),
-               axios.get('/api/grade-rules').catch(e => e.response),
-               getLiveLogs()
-            ]);
-
-            // Handle potential 503 or 404 from partial backend readiness
-            if (custRes?.status === 200) {
-              setCustomers(custRes.data);
-              setDbStatus('CONNECTED');
-              addLog("VAULT: Database u477692720_ArrearsFlow synchronized.");
-            } else {
-              setCustomers(INITIAL_CUSTOMERS);
-              setDbStatus('DISCONNECTED');
-              addLog("CRITICAL: Vault 503. Using offline cache (initialData). Check .env credentials.");
-            }
-
-            if (ruleRes?.status === 200) {
-              setGradeRules(ruleRes.data);
-            } else {
-              setGradeRules(INITIAL_GRADE_RULES);
-            }
-
-            setSystemLogs(prev => [...liveLogs, ...prev]);
-            addLog("SYNC: Remote logic clusters online.");
-         } catch (e: any) {
-            console.error("Initialization Error:", e);
-            setDbStatus('DISCONNECTED');
-            setCustomers(INITIAL_CUSTOMERS);
-            setGradeRules(INITIAL_GRADE_RULES);
-            addLog("ERROR: Node infrastructure timed out. Operating in Local Mode.");
-         }
-      };
       initializeData();
     }
-  }, [user]);
+  }, [user, initializeData]);
 
   const handleCommitEntry = async (entry: any) => {
     if (!selectedId || !activeCustomer) return;
@@ -122,7 +124,7 @@ export const useAppStore = () => {
     };
 
     try {
-       addLog(`STAGING: Pushing ref ${newTx.id} to MySQL node...`);
+       addLog(`STAGING: Pushing Ledger mutation ${newTx.id}...`);
        await axios.post('/api/transactions', { ...newTx, customerId: selectedId });
        
        setCustomers(prev => prev.map(c => {
@@ -136,10 +138,10 @@ export const useAppStore = () => {
          }
          return c;
        }));
-       addLog(`COMMIT: Ledger mutated for ${activeCustomer.uniquePaymentCode}`);
+       addLog(`COMMIT_OK: Ref ${newTx.id} persisted to vault.`);
        setIsEntryModalOpen(false);
     } catch (e) {
-       addLog("REJECTED: Vault write error. Check DB permissions.");
+       addLog("REJECTED: MySQL node rejected the commit payload.");
     }
   };
 
@@ -167,12 +169,12 @@ export const useAppStore = () => {
     };
 
     try {
-       addLog(`ONBOARDING: Syncing identity ${newCustomer.uniquePaymentCode}...`);
+       addLog(`ONBOARDING: Transmitting identity ${newCustomer.uniquePaymentCode}...`);
        await axios.post('/api/customers', newCustomer);
        setCustomers(prev => [...prev, newCustomer]);
        addLog(`SYNC_OK: ${newCustomer.name} committed to vault.`);
     } catch (e) {
-       addLog("ERROR: Database cluster rejected the new entity.");
+       addLog("REJECTED: Onboarding protocol failed.");
     }
   };
 
@@ -180,7 +182,7 @@ export const useAppStore = () => {
     setCustomers(prev => prev.map(c => 
       c.id === customerId ? { ...c, deepvueInsights: { ...(c.deepvueInsights || {}), ...data } as DeepvueInsight } : c
     ));
-    addLog(`INTEL_UPDATE: Forensic profile for ${customerId} synchronized.`);
+    addLog(`INTEL_UPDATE: Forensic trace updated for ${customerId}.`);
   };
 
   const setPrimaryContact = (customerId: string, value: string) => {
@@ -191,12 +193,12 @@ export const useAppStore = () => {
       }
       return c;
     }));
-    addLog(`IDENTITY_MUTATION: Primary contact updated.`);
+    addLog(`IDENTITY_FIX: Primary phone updated.`);
   };
 
   const updateIntegrationConfig = (nodeId: string, fields: IntegrationField[]) => {
     setIntegrations(prev => prev.map(node => node.id === nodeId ? { ...node, fields } : node));
-    addLog(`INFRA_UPDATE: Credentials encrypted and committed.`);
+    addLog(`INFRA_UPDATE: Node ${nodeId} credentials updated.`);
   };
 
   return {
@@ -211,32 +213,32 @@ export const useAppStore = () => {
       setUser, setActiveView, setCustomers, setSearchTerm, setFilterGrade,
       setExpandedMenus, setIsMobileMenuOpen, setIsEntryModalOpen, setEditingTransaction,
       setEntryDefaults, setIsEditModalOpen, setTemplates, setGradeRules,
-      handleCommitEntry, addCustomer,
+      handleCommitEntry, addCustomer, initializeData,
       navigateToCustomer: (id: string) => { setSelectedId(id); setActiveView('view-customer'); },
       resetCustomerView: () => { setSelectedId(null); setActiveView('customers'); setAiStrategy(null); },
       handleAiInquiry: async () => {
         if (!activeCustomer) return;
         setIsAiLoading(true);
-        addLog(`CORTEX: Reasoning cycle initiated for ${activeCustomer.uniquePaymentCode}`);
+        addLog(`CORTEX: Requesting deep strategy for ${activeCustomer.uniquePaymentCode}...`);
         const strategy = await generateEnterpriseStrategy(activeCustomer, callLogs);
         setAiStrategy(strategy);
         setIsAiLoading(false);
-        addLog(`ADVISORY: Heuristic roadmap received.`);
+        addLog(`CORTEX_REASON: Analysis received.`);
       },
       handleDeleteTransaction: (txId: string) => {
         setCustomers(prev => prev.map(c => c.id === selectedId ? { ...c, transactions: c.transactions.filter(t => t.id !== txId) } : c));
-        addLog(`CLEANUP: Reference ${txId} purged from memory.`);
+        addLog(`CLEANUP: Record ${txId} purged from memory.`);
       },
       openEditModal: (tx: Transaction) => { setEditingTransaction(tx); setIsEntryModalOpen(true); },
       enrichCustomerData: async () => {
         if (!activeCustomer) return;
         setIsAiLoading(true);
-        addLog(`FORENSIC: Pinging Deepvue for identity trace ${activeCustomer.phone}`);
+        addLog(`FORENSIC: Pinging Deepvue node for ${activeCustomer.phone}...`);
         setIsAiLoading(false);
       },
       handleAddCallLog: (log: CommunicationLog) => {
         setCallLogs(prev => [log, ...prev]);
-        addLog(`PROTOCOL: Voice interaction committed to ledger.`);
+        addLog(`VOICE_PROTOCOL: Interaction committed.`);
       },
       handleUpdateProfile: (updates: any) => {
         setCustomers(prev => prev.map(c => c.id === selectedId ? { ...c, ...updates } : c));

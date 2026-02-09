@@ -1,7 +1,7 @@
 import React from 'react';
 import { 
   ShieldCheck, Landmark, Users, TrendingUp, Layers, Zap, Globe, Activity,
-  Coins, UserCheck, ShieldAlert, Cpu, Database, Network, Fingerprint, AlertCircle
+  Coins, UserCheck, ShieldAlert, Cpu, Database, Network, Fingerprint, AlertCircle, RefreshCw
 } from 'lucide-react';
 import { DashboardCard } from '../components/DashboardCard';
 import { TerminalConsole } from '../components/TerminalConsole';
@@ -20,7 +20,7 @@ interface DashboardViewProps {
 export const DashboardView: React.FC<DashboardViewProps> = ({ 
   customers, isAdmin, systemLogs, gradeRules, callLogs 
 }) => {
-  const { state } = useAppStore();
+  const { state, actions } = useAppStore();
   const totalLiability = customers.reduce((s, c) => s + c.currentBalance, 0);
   const totalGoldLiability = customers.reduce((s, c) => s + (c.currentGoldBalance || 0), 0);
   const criticalCount = customers.filter(c => {
@@ -46,7 +46,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <h2 className="text-4xl md:text-5xl font-black uppercase tracking-tighter leading-none mb-3">
                Recovery Command <span className="text-blue-500">Center</span>
             </h2>
-            <p className="text-slate-400 font-bold uppercase text-[10px] tracking-[0.3em]">Sanghavi Jewellers | Enterprise Grade v5.6.0</p>
+            <p className="text-slate-400 font-bold uppercase text-[10px] tracking-[0.3em]">Sanghavi Jewellers | Enterprise Grade v5.7.0</p>
          </div>
 
          <div className="relative z-10 flex flex-wrap gap-4">
@@ -73,14 +73,23 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       </div>
 
       {!isDbConnected && (
-         <div className="bg-rose-50 border-2 border-rose-200 p-8 rounded-[2.5rem] flex items-center gap-6 animate-pulse">
-            <div className="p-4 bg-rose-600 text-white rounded-2xl shadow-lg">
-               <AlertCircle size={32}/>
+         <div className="bg-rose-50 border-2 border-rose-200 p-8 rounded-[2.5rem] flex flex-col md:flex-row items-center gap-8 animate-in slide-in-from-top-4">
+            <div className="p-5 bg-rose-600 text-white rounded-2xl shadow-lg shrink-0">
+               <AlertCircle size={40}/>
             </div>
-            <div>
-               <h3 className="text-xl font-black uppercase text-rose-900 tracking-tight">Vault Locked (503 Service Unavailable)</h3>
-               <p className="text-sm text-rose-700 font-medium mt-1">The application is unable to reach the MySQL cluster <strong>u477692720_ArrearsFlow</strong>. Please check your <code>.env</code> credentials and firewall rules on host <code>139.59.10.70</code>.</p>
+            <div className="flex-1 text-center md:text-left">
+               <h3 className="text-2xl font-black uppercase text-rose-900 tracking-tight">Vault Offline (503 ERROR)</h3>
+               <p className="text-sm text-rose-700 font-medium mt-1 leading-relaxed max-w-2xl">
+                 The application failed to establish a handshake with the MySQL database <strong>u477692720_ArrearsFlow</strong>. 
+                 Verify your <code>.env</code> credentials (DB_HOST, DB_USER, DB_PASSWORD). In most cloud environments, DB_HOST should be <code>localhost</code>.
+               </p>
             </div>
+            <button 
+              onClick={() => actions.initializeData()}
+              className="px-10 py-5 bg-rose-600 text-white rounded-3xl font-black uppercase tracking-widest text-xs shadow-xl hover:bg-rose-700 transition-all flex items-center gap-3 shrink-0"
+            >
+               <RefreshCw size={18}/> Retry Handshake
+            </button>
          </div>
       )}
 
@@ -96,7 +105,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
            </h3>
            <div className="flex items-center gap-2 mt-4">
               <TrendingUp size={12} className="text-emerald-500"/>
-              <span className="text-[10px] font-black text-emerald-600 uppercase">+2.4% System Yield</span>
+              <span className="text-[10px] font-black text-emerald-600 uppercase">+2.4% Portfolio Delta</span>
            </div>
         </div>
 
@@ -108,7 +117,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
            <h3 className="text-4xl font-black text-amber-900 tracking-tighter tabular-nums leading-none mb-2">
              {formatGold(totalGoldLiability)}
            </h3>
-           <p className="text-[9px] font-bold text-amber-700 uppercase tracking-widest mt-4">999 Fine Weight Reserve</p>
+           <p className="text-[9px] font-bold text-amber-700 uppercase tracking-widest mt-4">999 Fine Pure Weight</p>
         </div>
 
         <div className="bg-white p-8 rounded-[3rem] shadow-xl border border-slate-100 relative overflow-hidden group">
@@ -131,13 +140,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
            <div className="absolute -bottom-8 -right-8 p-6 opacity-10">
               <ShieldCheck size={200} className="text-white"/>
            </div>
-           <p className="text-[10px] font-black uppercase text-slate-500 tracking-[0.3em] mb-4">Node Infrastructure</p>
+           <p className="text-[10px] font-black uppercase text-slate-500 tracking-[0.3em] mb-4">Authority Node</p>
            <h3 className="text-3xl font-black text-white tracking-tighter leading-none mb-2">
-             72.61.175.20
+             139.59.10.70
            </h3>
            <div className="mt-4 flex items-center gap-3">
               <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_15px_#10b981]"></div>
-              <span className="text-[10px] font-black text-emerald-400 uppercase tracking-[0.2em]">Authorized: JM_MATRIX</span>
+              <span className="text-[10px] font-black text-emerald-400 uppercase tracking-[0.2em]">Authorized Session</span>
            </div>
         </div>
       </div>
@@ -151,29 +160,22 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     <Activity size={28}/>
                  </div>
                  <div>
-                    <h3 className="text-2xl font-black uppercase tracking-tighter text-slate-900 leading-none">Global Exposure Audit</h3>
+                    <h3 className="text-2xl font-black uppercase tracking-tighter text-slate-900 leading-none">Risk Threshold Audit</h3>
                     <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest mt-2 flex items-center gap-2">
-                       <ShieldAlert size={14} className="text-rose-500"/> {criticalCount} Entities in Critical Threshold
+                       <ShieldAlert size={14} className="text-rose-500"/> {criticalCount} High Exposure Targets Detected
                     </p>
                  </div>
               </div>
            </div>
            
-           <div className="p-6 md:p-10 space-y-4 flex-1">
-              <div className="grid grid-cols-12 px-6 mb-4 text-[9px] font-black uppercase text-slate-400 tracking-[0.2em]">
-                 <div className="col-span-5">Entity Node</div>
-                 <div className="col-span-2">Intelligence</div>
-                 <div className="col-span-2">Dormancy</div>
-                 <div className="col-span-3 text-right">Net Liability</div>
-              </div>
-              
-              {customers.slice(0, 8).map(c => {
+           <div className="p-6 md:p-10 space-y-4 flex-1 overflow-y-auto">
+              {customers.length > 0 ? customers.slice(0, 8).map(c => {
                 const b = analyzeCustomerBehavior(c, gradeRules.length > 0 ? gradeRules : [], callLogs);
                 return (
                   <div key={c.id} className="grid grid-cols-12 items-center p-5 bg-white hover:bg-slate-50 border border-slate-100 hover:border-slate-200 rounded-[2rem] transition-all group cursor-pointer shadow-sm hover:shadow-md">
                     <div className="col-span-5 flex items-center gap-5">
                       <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black text-white shadow-xl transition-transform group-hover:scale-110 ${
-                        b.score > 70 ? 'bg-emerald-500' : b.score > 40 ? 'bg-indigo-600' : 'bg-rose-500'
+                        b.calculatedGrade === 'A' ? 'bg-emerald-500' : b.calculatedGrade === 'B' ? 'bg-blue-600' : 'bg-rose-500'
                       }`}>
                         {b.calculatedGrade}
                       </div>
@@ -189,7 +191,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                          b.score > 40 ? 'bg-blue-50 text-blue-600 border-blue-100' : 
                          'bg-rose-50 text-rose-600 border-rose-100'
                        }`}>
-                         {b.score}% Propensity
+                         {b.score}% Health
                        </span>
                     </div>
 
@@ -203,12 +205,17 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     </div>
                   </div>
                 );
-              })}
+              }) : (
+                 <div className="h-64 flex flex-col items-center justify-center text-slate-300">
+                    <Database size={48} className="mb-4 opacity-20"/>
+                    <p className="text-[10px] font-black uppercase tracking-widest">Awaiting Vault Synchronization...</p>
+                 </div>
+              )}
            </div>
            
            <div className="p-8 bg-slate-50 border-t border-slate-100 flex justify-center">
-              <button className="text-[11px] font-black text-indigo-600 uppercase tracking-[0.4em] hover:translate-x-3 transition-all flex items-center gap-4">
-                 Synchronize Full Sovereign Ledger <TrendingUp size={14}/>
+              <button onClick={() => actions.setActiveView('customers')} className="text-[11px] font-black text-indigo-600 uppercase tracking-[0.4em] hover:translate-x-3 transition-all flex items-center gap-4">
+                 Open Global Entity Master <TrendingUp size={14}/>
               </button>
            </div>
         </div>
