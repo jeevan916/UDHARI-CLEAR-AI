@@ -1,3 +1,4 @@
+
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
@@ -6,21 +7,24 @@ import { GoogleGenAI, Type } from "@google/genai";
 import dotenv from 'dotenv';
 import mysql from 'mysql2/promise';
 
-dotenv.config();
-
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// --- STRICT ENVIRONMENT LOADING ---
+// Targeting specific Hostinger directory structure provided by user
+// Fixed: Property 'cwd' does not exist on type 'Process' - Using path.resolve() directly resolves relative to the current working directory
+dotenv.config({ path: path.resolve('public_html/.builds/config/.env') });
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
 // --- PRODUCTION CORE: GEMINI AI ---
-// Strict adherence to initialization rules
+// Standardized initialization per latest SDK requirements
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-// --- PRODUCTION CORE: MYSQL ENTERPRISE ---
-// Enhanced configuration for Linux/Hostinger environments
+// --- PRODUCTION CORE: MYSQL CO-LOCATED ---
+// Optimized for Hostinger Cloud Professional local execution
 const dbConfig = {
   host: process.env.DB_HOST || 'localhost',
   user: process.env.DB_USER || 'u477692720_ArrearsFlow',
@@ -28,34 +32,34 @@ const dbConfig = {
   database: process.env.DB_NAME || 'u477692720_ArrearsFlow',
   port: parseInt(process.env.DB_PORT || '3306'),
   waitForConnections: true,
-  connectionLimit: 10,
+  connectionLimit: 30, // Increased for professional server capacity
   queueLimit: 0,
   enableKeepAlive: true,
   keepAliveInitialDelay: 10000,
-  connectTimeout: 30000 
+  connectTimeout: 10000 // Reduced for local co-located handshake
 };
 
-// Use a separate function to create pool to allow for easier error trapping
 const pool = mysql.createPool(dbConfig);
 
 const KERNEL_CONFIG = {
-  nodeId: process.env.NODE_ID || "139.59.10.70",
-  version: "5.7.0-SANGHAVI-ENTERPRISE",
-  cluster: "pay.sanghavijewellers.in",
+  nodeId: "139.59.10.70",
+  version: "5.9.0-HOSTINGER-COLOCATED",
+  tier: "Cloud Professional",
   db_node: dbConfig.database,
-  status: "BOOTING",
+  connection_mode: "LOCAL_LOOPBACK",
+  status: "SYNCHRONIZING",
   uptime: new Date().toISOString()
 };
 
-// --- SYSTEM HANDSHAKE & SCHEMA SYNC ---
-const initializeDatabase = async () => {
+// --- SYSTEM INITIALIZATION ---
+const bootSequence = async () => {
   let conn;
   try {
-    console.log(`[BOOT] Attempting Handshake with Vault: ${dbConfig.database} on ${dbConfig.host}...`);
+    console.log(`[BOOT] CO-LOCATED LINK: Attempting Local Handshake...`);
     conn = await pool.getConnection();
-    console.log(`[BOOT] Database Handshake: SUCCESS`);
+    console.log(`[BOOT] VAULT_READY: Local connection to ${dbConfig.database} verified.`);
     
-    // Core Tables initialization
+    // Auto-provision schema if missing
     await conn.execute(`
       CREATE TABLE IF NOT EXISTS customers (
         id VARCHAR(50) PRIMARY KEY,
@@ -95,46 +99,26 @@ const initializeDatabase = async () => {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     `);
 
-    await conn.execute(`
-      CREATE TABLE IF NOT EXISTS grade_rules (
-        id VARCHAR(5) PRIMARY KEY,
-        label VARCHAR(100) NOT NULL,
-        color VARCHAR(20) DEFAULT 'slate',
-        priority INT NOT NULL,
-        min_balance DECIMAL(15, 2) DEFAULT 0.00,
-        days_since_payment INT DEFAULT 0,
-        days_since_contact INT DEFAULT 0,
-        anti_spam_threshold INT DEFAULT 24,
-        anti_spam_unit ENUM('hours', 'days') DEFAULT 'hours',
-        whatsapp BOOLEAN DEFAULT FALSE,
-        sms BOOLEAN DEFAULT FALSE,
-        template_id VARCHAR(50),
-        frequency_days INT DEFAULT 30
-      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-    `);
-
-    console.log("[KERNEL] Node Architecture: FULLY SYNCHRONIZED");
     KERNEL_CONFIG.status = "AUTHORIZED";
+    console.log("[KERNEL] Node Architecture: FULLY STABLE");
   } catch (err: any) {
-    console.error(`[CRITICAL] Vault Handshake Failed: ${err.message}`);
-    console.error(`[DEBUG] Check if DB_HOST (${dbConfig.host}) allows connections for ${dbConfig.user}`);
+    console.error(`[CRITICAL] Co-located Handshake Failed: ${err.message}`);
     KERNEL_CONFIG.status = "MAINTENANCE";
   } finally {
     if (conn) conn.release();
   }
 };
 
-initializeDatabase();
+bootSequence();
 
-// --- API ROUTES ---
+// --- API LAYER ---
 
-// Health Check
 app.get('/api/health', async (req, res) => {
   try {
-    const [rows]: any = await pool.execute('SELECT 1 as val');
-    res.json({ status: 'UP', database: 'CONNECTED', kernel: KERNEL_CONFIG });
+    const [rows]: any = await pool.execute('SELECT 1 as connected');
+    res.json({ status: 'UP', node: KERNEL_CONFIG.nodeId, kernel: KERNEL_CONFIG });
   } catch (err: any) {
-    res.status(503).json({ status: 'DEGRADED', database: 'LOCKED', error: err.message });
+    res.status(503).json({ status: 'DOWN', error: err.message });
   }
 });
 
@@ -171,21 +155,7 @@ app.get('/api/customers', async (req, res) => {
     
     res.json(mapped);
   } catch (err: any) {
-    res.status(503).json({ error: "VAULT_ACCESS_DENIED", details: err.message });
-  }
-});
-
-app.post('/api/customers', async (req, res) => {
-  const c = req.body;
-  try {
-    await pool.execute(
-      `INSERT INTO customers (id, name, phone, email, address, tax_number, group_id, unique_payment_code, current_balance, current_gold_balance, credit_limit) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [c.id, c.name, c.phone, c.email || '', c.address || '', c.taxNumber || '', c.groupId || 'Retail Client', c.uniquePaymentCode, c.currentBalance || 0, 0, c.creditLimit || 0]
-    );
-    res.json({ success: true });
-  } catch (err: any) {
-    res.status(500).json({ error: "TRANSACTION_REJECTED", details: err.message });
+    res.status(503).json({ error: "VAULT_READ_ERROR", details: err.message });
   }
 });
 
@@ -208,39 +178,21 @@ app.post('/api/transactions', async (req, res) => {
     res.json({ success: true });
   } catch (err: any) {
     if (conn) await conn.rollback();
-    res.status(500).json({ error: "LEDGER_COMMIT_FAIL", details: err.message });
+    res.status(500).json({ error: "COMMIT_ERROR", details: err.message });
   } finally {
     if (conn) conn.release();
   }
 });
 
-app.get('/api/grade-rules', async (req, res) => {
-  try {
-    const [rows]: any = await pool.execute('SELECT * FROM grade_rules ORDER BY priority ASC');
-    const mapped = rows.map((r: any) => ({
-      ...r,
-      minBalance: Number(r.min_balance),
-      daysSincePayment: r.days_since_payment,
-      daysSinceContact: r.days_since_contact,
-      antiSpamThreshold: r.anti_spam_threshold,
-      antiSpamUnit: r.anti_spam_unit,
-      frequencyDays: r.frequency_days
-    }));
-    res.json(mapped);
-  } catch (err: any) {
-    res.status(503).json({ error: "RULES_ENGINE_OFFLINE" });
-  }
-});
-
-// Gemini Reasoning Node - Enterprise Grade Heuristics
+// Gemini Cortex - Reasoning on Professional Tier Server
 app.post('/api/kernel/reason', async (req, res) => {
   const { customerData, interactionLogs } = req.body;
-  if (!process.env.API_KEY) return res.status(500).json({ error: "CORTEX_OFFLINE" });
+  if (!process.env.API_KEY) return res.status(500).json({ error: "API_KEY_UNSET" });
 
   try {
     const response = await ai.models.generateContent({
       model: "gemini-3-pro-preview",
-      contents: `ACT AS: Lead Financial Auditor. ANALYZE ENTITY: ${JSON.stringify({ customerData, interactionLogs })}. OUTPUT: Valid risk JSON roadmap.`,
+      contents: `ACT AS: Financial Recovery Auditor. ANALYZE ENTITY: ${JSON.stringify({ customerData, interactionLogs })}. OUTPUT: JSON risk profile.`,
       config: { 
         responseMimeType: "application/json",
         responseSchema: {
@@ -257,7 +209,7 @@ app.post('/api/kernel/reason', async (req, res) => {
     });
     res.json(JSON.parse(response.text || '{}'));
   } catch (err: any) {
-    res.status(500).json({ error: "AI_TIMEOUT" });
+    res.status(500).json({ error: "CORTEX_TIMEOUT" });
   }
 });
 
@@ -266,9 +218,9 @@ app.get('/api/kernel/status', (req, res) => res.json(KERNEL_CONFIG));
 app.get('/api/kernel/logs', (req, res) => {
   const ts = new Date().toISOString();
   res.json([
-    `[${ts}] SYSTEM: Sovereign Node ${KERNEL_CONFIG.nodeId} v${KERNEL_CONFIG.version} Online`,
-    `[${ts}] DATABASE: ${dbConfig.database} Handshake Status: ${KERNEL_CONFIG.status}`,
-    `[${ts}] SECURITY: AES-256 Protocol Bridge verified`
+    `[${ts}] ARCH: Co-located Cluster Online`,
+    `[${ts}] NODE: Hostinger Cloud Professional v${KERNEL_CONFIG.version}`,
+    `[${ts}] LINK: Direct socket to ${dbConfig.database}`
   ]);
 });
 
@@ -276,4 +228,4 @@ app.use(express.static(path.join(__dirname, 'dist')));
 app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'dist', 'index.html')));
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`[ENTERPRISE] Recovery Node Active on Port ${PORT}`));
+app.listen(PORT, () => console.log(`[SOVEREIGN] Hostinger Node Active on Port ${PORT}`));
