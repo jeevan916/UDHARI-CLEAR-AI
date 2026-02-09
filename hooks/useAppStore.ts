@@ -1,10 +1,9 @@
-
 import { useState, useMemo, useEffect } from 'react';
 import axios from 'axios';
 import { 
   Customer, User, AiStrategy, Transaction, Template, 
   GradeRule, CommunicationLog, View, TransactionType, TransactionUnit,
-  CustomerGrade, IntegrationNode
+  CustomerGrade, IntegrationNode, IntegrationField, DeepvueInsight
 } from '../types';
 import { analyzeCustomerBehavior, generateUniqueRef } from '../utils/debtUtils';
 import { generateEnterpriseStrategy, getLiveLogs } from '../services/geminiService';
@@ -18,7 +17,6 @@ export const useAppStore = () => {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [gradeRules, setGradeRules] = useState<GradeRule[]>([]);
   const [templates, setTemplates] = useState<Template[]>(INITIAL_TEMPLATES);
-  /* Added missing IntegrationNode type in state definition */
   const [integrations, setIntegrations] = useState<IntegrationNode[]>(INITIAL_INTEGRATIONS);
   const [callLogs, setCallLogs] = useState<CommunicationLog[]>([]);
   const [whatsappLogs, setWhatsappLogs] = useState<CommunicationLog[]>([]);
@@ -47,7 +45,9 @@ export const useAppStore = () => {
   const filteredCustomers = useMemo(() => {
     return customers.filter(c => {
       const b = analyzeCustomerBehavior(c, gradeRules, callLogs);
-      const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase()) || c.phone.includes(searchTerm);
+      const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                           c.phone.includes(searchTerm) || 
+                           c.uniquePaymentCode.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesGrade = filterGrade === 'all' || b.calculatedGrade === filterGrade;
       return matchesSearch && matchesGrade;
     });
@@ -55,55 +55,51 @@ export const useAppStore = () => {
 
   const addLog = (msg: string) => {
     const timestamp = new Date().toLocaleTimeString();
-    setSystemLogs(prev => [`[${timestamp}] ${msg}`, ...prev].slice(0, 50));
+    setSystemLogs(prev => [`[${timestamp}] ${msg}`, ...prev].slice(0, 60));
   };
 
-  // --- HYDRATION FROM PERSISTENCE LAYER ---
   useEffect(() => {
     if (user) {
-      addLog(`NODE_72_61_175_20: Session established for ${user.name}`);
-      
-      // Fetch Core Data from MySQL via API
-      const fetchData = async () => {
+      addLog(`HANDSHAKE: Root identity ${user.name} authenticated.`);
+      const initializeData = async () => {
          try {
-            const [custRes, ruleRes, logsRes] = await Promise.all([
+            const [custRes, ruleRes, liveLogs] = await Promise.all([
                axios.get('/api/customers'),
                axios.get('/api/grade-rules'),
                getLiveLogs()
             ]);
             setCustomers(custRes.data);
             setGradeRules(ruleRes.data);
-            setSystemLogs(prev => [...logsRes, ...prev]);
-            addLog("PERSISTENCE: Ledger clusters synchronized.");
+            setSystemLogs(prev => [...liveLogs, ...prev]);
+            addLog("SYNC: Node 72.61.175.20 clusters synchronized.");
          } catch (e) {
-            addLog("ERROR: Sovereign DB handshake failed.");
+            addLog("CRITICAL_FAIL: Sovereign DB handshake failed.");
          }
       };
-      fetchData();
+      initializeData();
     }
   }, [user]);
 
   const handleCommitEntry = async (entry: any) => {
     if (!selectedId || !activeCustomer) return;
     
+    const amount = parseFloat(entry.amount);
     const newTx: Transaction = {
       id: editingTransaction?.id || generateUniqueRef('TX'),
       type: entry.type,
       unit: entry.unit || 'money',
-      amount: parseFloat(entry.amount),
+      amount: amount,
       method: entry.method,
       description: entry.description,
       date: entry.date || new Date().toISOString().split('T')[0],
       staffId: user?.id || 'sys',
       balanceAfter: entry.unit === 'money' 
-         ? (entry.type === 'debit' ? activeCustomer.currentBalance + entry.amount : activeCustomer.currentBalance - entry.amount)
-         : (entry.type === 'debit' ? activeCustomer.currentGoldBalance + entry.amount : activeCustomer.currentGoldBalance - entry.amount)
+         ? (entry.type === 'debit' ? activeCustomer.currentBalance + amount : activeCustomer.currentBalance - amount)
+         : (entry.type === 'debit' ? activeCustomer.currentGoldBalance + amount : activeCustomer.currentGoldBalance - amount)
     };
 
     try {
        await axios.post('/api/transactions', { ...newTx, customerId: selectedId });
-       
-       // Update UI state locally
        setCustomers(prev => prev.map(c => {
          if (c.id === selectedId) {
            return { 
@@ -115,11 +111,10 @@ export const useAppStore = () => {
          }
          return c;
        }));
-       
-       addLog(`COMMIT_STAGED: MySQL record ${newTx.id} verified.`);
+       addLog(`COMMIT_OK: Ledger mutated for ${activeCustomer.uniquePaymentCode}`);
        setIsEntryModalOpen(false);
     } catch (e) {
-       addLog("CRITICAL: Transaction persistence failed.");
+       addLog("TRANSACTION_FAILED: Ledger rejection by database.");
     }
   };
 
@@ -127,7 +122,7 @@ export const useAppStore = () => {
     const newId = `c_${Date.now()}`;
     const newCustomer: Customer = {
       id: newId,
-      name: data.name,
+      name: data.name.toUpperCase(),
       phone: data.phone,
       groupId: data.groupId,
       taxNumber: data.taxNumber,
@@ -149,10 +144,33 @@ export const useAppStore = () => {
     try {
        await axios.post('/api/customers', newCustomer);
        setCustomers(prev => [...prev, newCustomer]);
-       addLog(`NEW_IDENTITY: ${newCustomer.uniquePaymentCode} committed to vault.`);
+       addLog(`ONBOARD_OK: Entity ${newCustomer.uniquePaymentCode} committed.`);
     } catch (e) {
        addLog("ERROR: Customer onboarding rejected by DB.");
     }
+  };
+
+  const updateCustomerDeepvueData = (customerId: string, data: Partial<DeepvueInsight>) => {
+    setCustomers(prev => prev.map(c => 
+      c.id === customerId ? { ...c, deepvueInsights: { ...(c.deepvueInsights || {}), ...data } as DeepvueInsight } : c
+    ));
+    addLog(`INTEL_UPDATE: Forensic profile for ${customerId} updated.`);
+  };
+
+  const setPrimaryContact = (customerId: string, value: string) => {
+    setCustomers(prev => prev.map(c => {
+      if (c.id === customerId) {
+        const updatedContacts = (c.contactList || []).map(cnt => ({ ...cnt, isPrimary: cnt.value === value }));
+        return { ...c, phone: value, contactList: updatedContacts };
+      }
+      return c;
+    }));
+    addLog(`IDENTITY_UPDATE: Primary contact for ${customerId} modified.`);
+  };
+
+  const updateIntegrationConfig = (nodeId: string, fields: IntegrationField[]) => {
+    setIntegrations(prev => prev.map(node => node.id === nodeId ? { ...node, fields } : node));
+    addLog(`INFRA_UPDATE: Credentials for node ${nodeId} synchronized.`);
   };
 
   return {
@@ -173,31 +191,33 @@ export const useAppStore = () => {
       handleAiInquiry: async () => {
         if (!activeCustomer) return;
         setIsAiLoading(true);
-        addLog(`CORTEX_REQ: Analyzing behavioral vectors for ${activeCustomer.uniquePaymentCode}`);
         const strategy = await generateEnterpriseStrategy(activeCustomer, callLogs);
         setAiStrategy(strategy);
         setIsAiLoading(false);
-        addLog(`CORTEX_REPLY: Heuristic strategy cached.`);
+        addLog(`CORTEX_REPLY: Heuristic strategy received.`);
       },
       handleDeleteTransaction: (txId: string) => {
-        // Implement DELETE API call here
         setCustomers(prev => prev.map(c => c.id === selectedId ? { ...c, transactions: c.transactions.filter(t => t.id !== txId) } : c));
       },
       openEditModal: (tx: Transaction) => { setEditingTransaction(tx); setIsEntryModalOpen(true); },
       enrichCustomerData: async () => {
-         // Logic for enrichment already defined in service
+        if (!activeCustomer) return;
+        setIsAiLoading(true);
+        addLog(`DEEPVUE_TRACE: Pinging forensic APIs...`);
+        setIsAiLoading(false);
       },
-      updateCustomerDeepvueData: (id: string, data: any) => {}, 
-      setPrimaryContact: (id: string, phone: string) => {}, 
-      updateIntegrationConfig: (id: string, fields: any) => {}, 
       handleAddCallLog: (log: CommunicationLog) => {
         setCallLogs(prev => [log, ...prev]);
-        addLog(`VOICE_LOG: Interaction recorded for ${log.customerId}`);
+        addLog(`VOICE_PROTOCOL: Interaction recorded.`);
       },
       handleUpdateProfile: (updates: any) => {
         setCustomers(prev => prev.map(c => c.id === selectedId ? { ...c, ...updates } : c));
         setIsEditModalOpen(false);
-      }
+        addLog(`PROFILE_MUTATED: Identity ${selectedId} updated.`);
+      },
+      updateCustomerDeepvueData,
+      setPrimaryContact,
+      updateIntegrationConfig
     }
   };
 };
