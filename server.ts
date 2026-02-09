@@ -48,25 +48,114 @@ app.get('/api/infrastructure/templates', async (req, res) => {
   res.json(synced);
 });
 
-// 3. Gemini Recovery Orchestrator
+// --- SECURE AI ENDPOINTS ---
+
+const handleAiError = (res: any, error: any) => {
+  console.error("AI Error:", error);
+  res.status(500).json({ error: 'AI Processing Failed', details: error.message });
+};
+
+// 3. Strategy Generator
 app.post('/api/ai/strategy', async (req, res) => {
-  const { customer } = req.body;
-  if (!process.env.API_KEY) {
-     res.status(500).json({ error: 'API_KEY missing on server' });
-     return;
-  }
+  const { prompt } = req.body;
+  if (!process.env.API_KEY) return res.status(500).json({ error: 'API_KEY missing on server' });
+  
   try {
     const result = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: `Generate recovery strategy for ${customer.name} with balance ${customer.currentBalance}.`,
+      model: "gemini-3-pro-preview",
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        // Schema is complex, defined in service prompt usually, but here we expect JSON string
+      }
+    });
+    res.json(JSON.parse(result.text || '{}'));
+  } catch (err) { handleAiError(res, err); }
+});
+
+// 4. Template Generator (Smart)
+app.post('/api/ai/template/smart', async (req, res) => {
+  const { prompt, category } = req.body;
+  if (!process.env.API_KEY) return res.status(500).json({ error: 'API_KEY missing on server' });
+
+  try {
+    const geminiPrompt = `
+         Create a WhatsApp Business Template message.
+         Context: Debt Collection / Payment Reminder / Customer Service.
+         Category: ${category}
+         User Intent: ${prompt}
+         
+         Requirements:
+         1. Use {{1}}, {{2}} format for variables.
+         2. Use *bold* for key details.
+         3. Suggest 2 relevant buttons.
+         4. Suggest a snake_case system name starting with 'credit_flow_'.
+         
+         Output JSON: { "content": "string", "buttons": ["btn1", "btn2"], "suggestedName": "string" }
+    `;
+    const result = await ai.models.generateContent({
+      model: "gemini-2.5-flash-preview",
+      contents: geminiPrompt,
       config: { responseMimeType: "application/json" }
     });
-    if (result.text) res.json(JSON.parse(result.text));
-    else res.status(500).json({ error: 'AI Timeout' });
-  } catch (err) {
-    console.error("AI Error:", err);
-    res.status(500).json({ error: 'Analysis Failed' });
-  }
+    res.json(JSON.parse(result.text || '{}'));
+  } catch (err) { handleAiError(res, err); }
+});
+
+// 5. Template Optimizer
+app.post('/api/ai/template/optimize', async (req, res) => {
+  const { content, context } = req.body;
+  if (!process.env.API_KEY) return res.status(500).json({ error: 'API_KEY missing on server' });
+
+  try {
+    const geminiPrompt = `
+         ACT AS: Conversion Optimization Specialist.
+         TASK: Rewrite the following WhatsApp message to be more effective for: "${context}".
+         CURRENT CONTENT: "${content}"
+         RULES: Preserve {{1}}, {{2}} variables. Improve tone. Output raw text only.
+    `;
+    const result = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: geminiPrompt
+    });
+    res.json({ content: result.text?.trim() });
+  } catch (err) { handleAiError(res, err); }
+});
+
+// 6. Grade Rules Optimizer
+app.post('/api/ai/rules/optimize', async (req, res) => {
+  const { stats } = req.body;
+  if (!process.env.API_KEY) return res.status(500).json({ error: 'API_KEY missing on server' });
+
+  try {
+    const geminiPrompt = `
+        ACT AS: Chief Risk Officer.
+        TASK: Define segmentation logic (Grade Rules) for a debt portfolio.
+        STATS: Total Cust: ${stats.count}, Balance: ${stats.totalBalance}, Avg: ${stats.avgBalance}, Max Dormancy: ${stats.maxDormancy}.
+        GOAL: Create 4 buckets (A, B, C, D) as JSON array.
+    `;
+    const result = await ai.models.generateContent({
+      model: "gemini-3-pro-preview",
+      contents: geminiPrompt,
+      config: { responseMimeType: "application/json" }
+    });
+    res.json(JSON.parse(result.text || '[]'));
+  } catch (err) { handleAiError(res, err); }
+});
+
+// 7. Cortex Architect (Code Mods)
+app.post('/api/ai/cortex/mod', async (req, res) => {
+  const { prompt, context } = req.body;
+  if (!process.env.API_KEY) return res.status(500).json({ error: 'API_KEY missing on server' });
+
+  try {
+    const result = await ai.models.generateContent({
+      model: "gemini-3-pro-preview",
+      contents: `ACT AS: Senior Engineer. REQUEST: ${prompt}. FILE CONTEXT: ${context}. OUTPUT JSON with explanation, suggestedCode, fileAffected, impact.`,
+      config: { responseMimeType: "application/json" }
+    });
+    res.json(JSON.parse(result.text || '{}'));
+  } catch (err) { handleAiError(res, err); }
 });
 
 // --- PRODUCTION SERVING ---
