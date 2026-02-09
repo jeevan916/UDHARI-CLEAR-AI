@@ -1,12 +1,15 @@
 
 {
   "name": "sanghavi-jewellers-recovery-node",
-  "version": "3.1.0",
+  "version": "4.0.0",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "vite build",
     "preview": "vite preview",
     "start": "tsx server.ts"
   },
@@ -26,13 +29,12 @@
     "@vitejs/plugin-react": "^4.2.1",
     "autoprefixer": "^10.4.17",
     "postcss": "^8.4.35",
-    "tailwindcss": "^3.4.1"
-  },
-  "devDependencies": {
+    "tailwindcss": "^3.4.1",
     "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",
-    "@types/node": "^18.19.0",
+    "@types/node": "^22.0.0",
     "@types/react": "^18.2.37",
     "@types/react-dom": "^18.2.15"
-  }
+  },
+  "devDependencies": {}
 }

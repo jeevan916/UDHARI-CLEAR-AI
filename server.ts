@@ -1,5 +1,5 @@
 
-import express from 'express';
+import express, { Request, Response } from 'express';
 import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -67,9 +67,9 @@ bootSystem();
 
 // --- API ROUTES ---
 
-app.get('/api/system/health', (req, res) => res.json(SYSTEM_IDENTITY));
+app.get('/api/system/health', (req: Request, res: Response) => res.json(SYSTEM_IDENTITY));
 
-app.get('/api/customers', async (req, res) => {
+app.get('/api/customers', async (req: Request, res: Response) => {
   try {
     const [rows]: any = await pool.execute('SELECT * FROM customers ORDER BY current_balance DESC');
     res.json(rows);
@@ -78,7 +78,7 @@ app.get('/api/customers', async (req, res) => {
   }
 });
 
-app.post('/api/kernel/reason', async (req, res) => {
+app.post('/api/kernel/reason', async (req: Request, res: Response) => {
   const { customerData, interactions } = req.body;
   if (!process.env.API_KEY) return res.status(503).json({ error: "INTELLIGENCE_OFFLINE" });
 
@@ -98,7 +98,7 @@ app.post('/api/kernel/reason', async (req, res) => {
           },
           required: ["risk_score", "risk_level", "analysis", "action_plan"]
         },
-        thinkingConfig: { thinkingBudget: 4000 }
+        thinkingConfig: { thinkingBudget: 4000 } as any
       }
     });
 
@@ -110,7 +110,7 @@ app.post('/api/kernel/reason', async (req, res) => {
 });
 
 app.use(express.static(path.join(__dirname, 'dist')));
-app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'dist', 'index.html')));
+app.get('*', (req: Request, res: Response) => res.sendFile(path.join(__dirname, 'dist', 'index.html')));
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`[CORE] Enterprise Platform Active on Port ${PORT}`));

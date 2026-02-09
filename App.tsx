@@ -111,7 +111,7 @@ const App: React.FC = () => {
                 whatsappLogs={state.whatsappLogs}
                 onBack={actions.resetCustomerView}
                 onAi={actions.handleAiInquiry}
-                onAddEntry={(defaults) => { 
+                onAddEntry={(defaults: any) => { 
                    actions.setEditingTransaction(null); 
                    if (defaults) actions.setEntryDefaults(defaults);
                    actions.setIsEntryModalOpen(true); 
