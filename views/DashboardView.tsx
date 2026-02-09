@@ -1,8 +1,7 @@
 import React from 'react';
 import { 
-  ShieldCheck, Terminal, Scale, Landmark, Users, 
-  TrendingUp, Layers, Zap, Globe, Activity,
-  Coins, UserCheck, ShieldAlert
+  ShieldCheck, Landmark, Users, TrendingUp, Layers, Zap, Globe, Activity,
+  Coins, UserCheck, ShieldAlert, Cpu, Database, Network, Fingerprint
 } from 'lucide-react';
 import { DashboardCard } from '../components/DashboardCard';
 import { TerminalConsole } from '../components/TerminalConsole';
@@ -30,7 +29,42 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   return (
     <div className="space-y-8 animate-in fade-in duration-700 pb-24 max-w-[1700px] mx-auto">
       
-      {/* Dynamic Header Metrics */}
+      {/* EXECUTIVE COMMAND HEADER */}
+      <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-6 bg-slate-900 text-white p-10 rounded-[3.5rem] shadow-2xl relative overflow-hidden border border-white/5">
+         <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-20"></div>
+         <div className="relative z-10">
+            <div className="flex items-center gap-3 mb-4">
+               <div className="w-10 h-10 bg-blue-500/20 rounded-xl border border-blue-500/30 flex items-center justify-center">
+                  <Cpu className="text-blue-400 animate-pulse" size={24}/>
+               </div>
+               <span className="text-[10px] font-black uppercase tracking-[0.5em] text-blue-400">Node Cluster: Asia-South1</span>
+            </div>
+            <h2 className="text-4xl md:text-5xl font-black uppercase tracking-tighter leading-none mb-3">
+               Recovery Command <span className="text-blue-500">Center</span>
+            </h2>
+            <p className="text-slate-400 font-bold uppercase text-[10px] tracking-[0.3em]">Sanghavi Jewellers | Enterprise Grade v5.0.0</p>
+         </div>
+
+         <div className="relative z-10 flex flex-wrap gap-4">
+            <div className="px-6 py-4 bg-white/5 border border-white/10 rounded-2xl flex flex-col items-center min-w-[120px]">
+               <Activity size={18} className="text-emerald-400 mb-2"/>
+               <span className="text-[9px] font-black uppercase text-slate-500 tracking-widest">Logic Node</span>
+               <span className="text-xs font-bold text-emerald-400">HEALTHY</span>
+            </div>
+            <div className="px-6 py-4 bg-white/5 border border-white/10 rounded-2xl flex flex-col items-center min-w-[120px]">
+               <Database size={18} className="text-blue-400 mb-2"/>
+               <span className="text-[9px] font-black uppercase text-slate-500 tracking-widest">Vault Sync</span>
+               <span className="text-xs font-bold text-blue-400">LOCKED</span>
+            </div>
+            <div className="px-6 py-4 bg-white/5 border border-white/10 rounded-2xl flex flex-col items-center min-w-[120px]">
+               <Network size={18} className="text-amber-400 mb-2"/>
+               <span className="text-[9px] font-black uppercase text-slate-500 tracking-widest">Gateway</span>
+               <span className="text-xs font-bold text-amber-400">ACTIVE</span>
+            </div>
+         </div>
+      </div>
+
+      {/* DYNAMIC METRIC GRID */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 md:gap-8">
         <div className="bg-white p-8 rounded-[3rem] shadow-xl border border-slate-100 relative overflow-hidden group">
            <div className="absolute top-0 right-0 p-6 opacity-[0.05] group-hover:scale-110 transition-transform">
@@ -42,7 +76,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
            </h3>
            <div className="flex items-center gap-2 mt-4">
               <TrendingUp size={12} className="text-emerald-500"/>
-              <span className="text-[10px] font-black text-emerald-600 uppercase">+2.4% vs prev week</span>
+              <span className="text-[10px] font-black text-emerald-600 uppercase">+2.4% System Yield</span>
            </div>
         </div>
 
@@ -54,14 +88,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
            <h3 className="text-4xl font-black text-amber-900 tracking-tighter tabular-nums leading-none mb-2">
              {formatGold(totalGoldLiability)}
            </h3>
-           <p className="text-[9px] font-bold text-amber-700 uppercase tracking-widest mt-4">Total Net Weight (999)</p>
+           <p className="text-[9px] font-bold text-amber-700 uppercase tracking-widest mt-4">999 Fine Weight Reserve</p>
         </div>
 
         <div className="bg-white p-8 rounded-[3rem] shadow-xl border border-slate-100 relative overflow-hidden group">
            <div className="absolute top-0 right-0 p-6 opacity-[0.05]">
-              <UserCheck size={120} className="text-blue-600"/>
+              <Fingerprint size={120} className="text-blue-600"/>
            </div>
-           <p className="text-[10px] font-black uppercase text-slate-400 tracking-[0.3em] mb-4">Active Entities</p>
+           <p className="text-[10px] font-black uppercase text-slate-400 tracking-[0.3em] mb-4">Audited Entities</p>
            <h3 className="text-4xl font-black text-slate-900 tracking-tighter tabular-nums leading-none mb-2">
              {customers.length}
            </h3>
@@ -77,13 +111,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
            <div className="absolute -bottom-8 -right-8 p-6 opacity-10">
               <ShieldCheck size={200} className="text-white"/>
            </div>
-           <p className="text-[10px] font-black uppercase text-slate-500 tracking-[0.3em] mb-4">Infrastructure</p>
+           <p className="text-[10px] font-black uppercase text-slate-500 tracking-[0.3em] mb-4">Node Infrastructure</p>
            <h3 className="text-3xl font-black text-white tracking-tighter leading-none mb-2">
              72.61.175.20
            </h3>
            <div className="mt-4 flex items-center gap-3">
               <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_15px_#10b981]"></div>
-              <span className="text-[10px] font-black text-emerald-400 uppercase tracking-[0.2em]">Node Healthy</span>
+              <span className="text-[10px] font-black text-emerald-400 uppercase tracking-[0.2em]">Authorized: JM_MATRIX</span>
            </div>
         </div>
       </div>

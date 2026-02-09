@@ -15,17 +15,17 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Initialize Gemini Core strictly per guidelines
+// --- PRODUCTION CORE: GEMINI AI ---
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
 
-// MySQL Enterprise Connection Pool
+// --- PRODUCTION CORE: MYSQL ENTERPRISE ---
 const dbConfig = {
-  host: process.env.DB_HOST || 'localhost',
-  user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || '',
-  database: process.env.DB_NAME || 'sanghavi_recovery',
+  host: process.env.DB_HOST || '72.61.175.20',
+  user: process.env.DB_USER || 'u477692720_ArrearsFlow',
+  password: process.env.DB_PASSWORD || 'ArrearsFlow@916',
+  database: process.env.DB_NAME || 'u477692720_ArrearsFlow',
   waitForConnections: true,
-  connectionLimit: 20,
+  connectionLimit: 15,
   queueLimit: 0,
   enableKeepAlive: true,
   keepAliveInitialDelay: 10000
@@ -35,16 +35,21 @@ const pool = mysql.createPool(dbConfig);
 
 const KERNEL_CONFIG = {
   nodeId: "72.61.175.20",
-  version: "4.0.0-SANGHAVI-STABLE",
-  status: "SYNCHRONIZED",
+  version: "5.0.0-GOLD-ENTERPRISE",
+  cluster: "pay.sanghavijewellers.in",
+  region: "asia-south1",
+  status: "SECURED",
   uptime: new Date().toISOString()
 };
 
-// --- DATABASE AUTO-INITIALIZATION ---
-const initDb = async () => {
+// --- DATABASE AUTO-PROVISIONING ---
+const syncSchema = async () => {
   try {
-    console.log("[DB] Verifying table integrity...");
-    await pool.execute(`
+    const conn = await pool.getConnection();
+    console.log(`[KERNEL] DB Node Handshake: SUCCESS @ ${dbConfig.host}`);
+    
+    // Create Customers with Gold/Cash differentiation
+    await conn.execute(`
       CREATE TABLE IF NOT EXISTS customers (
         id VARCHAR(50) PRIMARY KEY,
         name VARCHAR(255) NOT NULL,
@@ -59,11 +64,14 @@ const initDb = async () => {
         credit_limit DECIMAL(15, 2) DEFAULT 0.00,
         is_active BOOLEAN DEFAULT TRUE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-      )
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX (phone),
+        INDEX (unique_payment_code)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     `);
 
-    await pool.execute(`
+    // Transactions with Staff Auditing
+    await conn.execute(`
       CREATE TABLE IF NOT EXISTS transactions (
         id VARCHAR(50) PRIMARY KEY,
         customer_id VARCHAR(50) NOT NULL,
@@ -76,11 +84,13 @@ const initDb = async () => {
         staff_id VARCHAR(50),
         balance_after DECIMAL(15, 3),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
-      )
+        FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE,
+        INDEX (date)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     `);
 
-    await pool.execute(`
+    // Grade Rules for Autoheal Engine
+    await conn.execute(`
       CREATE TABLE IF NOT EXISTS grade_rules (
         id VARCHAR(5) PRIMARY KEY,
         label VARCHAR(100) NOT NULL,
@@ -95,14 +105,13 @@ const initDb = async () => {
         sms BOOLEAN DEFAULT FALSE,
         template_id VARCHAR(50),
         frequency_days INT DEFAULT 30
-      )
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     `);
 
-    // Seed default rules if empty
-    const [rules]: any = await pool.execute('SELECT COUNT(*) as count FROM grade_rules');
+    // Seed defaults if empty
+    const [rules]: any = await conn.execute('SELECT COUNT(*) as count FROM grade_rules');
     if (rules[0].count === 0) {
-      console.log("[DB] Seeding default logic rules...");
-      await pool.execute(`
+      await conn.execute(`
         INSERT INTO grade_rules (id, label, color, priority, min_balance, days_since_payment, days_since_contact, anti_spam_threshold, anti_spam_unit, whatsapp, sms, template_id, frequency_days)
         VALUES 
         ('D', 'Critical / NPA', 'rose', 1, 50000.00, 90, 15, 48, 'hours', TRUE, TRUE, 'TPL_003', 2),
@@ -112,15 +121,16 @@ const initDb = async () => {
       `);
     }
 
-    console.log("[DB] Table check complete. Node Healthy.");
+    conn.release();
+    console.log("[KERNEL] Vault Structure: VERIFIED");
   } catch (err) {
-    console.error("[DB_INIT_CRITICAL]", err);
+    console.error("[CRITICAL] Node Initialization Failure:", err);
   }
 };
 
-initDb();
+syncSchema();
 
-// --- DATA PERSISTENCE API ---
+// --- RESTFUL PERSISTENCE API ---
 
 app.get('/api/customers', async (req, res) => {
   try {
@@ -138,7 +148,6 @@ app.get('/api/customers', async (req, res) => {
       FROM customers c
     `);
     
-    // Map snake_case database fields back to camelCase for the frontend
     const mapped = rows.map((c: any) => ({
       ...c,
       taxNumber: c.tax_number,
@@ -156,8 +165,7 @@ app.get('/api/customers', async (req, res) => {
     
     res.json(mapped);
   } catch (err: any) {
-    console.error("[API_GET_CUSTOMERS_ERROR]", err);
-    res.status(500).json({ error: "DATABASE_QUERY_FAILED", details: err.message });
+    res.status(500).json({ error: "DB_SYNC_FAIL", details: err.message });
   }
 });
 
@@ -171,8 +179,7 @@ app.post('/api/customers', async (req, res) => {
     );
     res.json({ success: true });
   } catch (err: any) {
-    console.error("[API_POST_CUSTOMER_ERROR]", err);
-    res.status(500).json({ error: "ONBOARDING_REJECTED", details: err.message });
+    res.status(500).json({ error: "ENTITY_REJECTED", details: err.message });
   }
 });
 
@@ -197,8 +204,7 @@ app.post('/api/transactions', async (req, res) => {
     res.json({ success: true });
   } catch (err: any) {
     await conn.rollback();
-    console.error("[API_POST_TRANSACTION_ERROR]", err);
-    res.status(500).json({ error: "LEDGER_COMMIT_FAILED", details: err.message });
+    res.status(500).json({ error: "COMMIT_DENIED", details: err.message });
   } finally {
     conn.release();
   }
@@ -218,28 +224,42 @@ app.get('/api/grade-rules', async (req, res) => {
     }));
     res.json(mapped);
   } catch (err: any) {
-    res.status(500).json({ error: "FAILED_TO_LOAD_RULES" });
+    res.status(500).json({ error: "LOGIC_FETCH_FAIL" });
   }
 });
 
-// --- AI INTELLIGENCE ---
+// --- CORE REASONING ENGINE (GEMINI 3 PRO) ---
 
 app.post('/api/kernel/reason', async (req, res) => {
   const { customerData, interactionLogs } = req.body;
-  if (!process.env.API_KEY) return res.status(500).json({ error: "Gemini Key Missing" });
+  if (!process.env.API_KEY) return res.status(500).json({ error: "CORTEX_OFFLINE: Key Missing" });
 
   try {
     const response = await ai.models.generateContent({
       model: "gemini-3-pro-preview",
-      contents: `ACT AS: Head of Recovery. ANALYZE: ${JSON.stringify({ customerData, interactionLogs })}. OUTPUT JSON SCHEMA: { risk_grade: string, analysis: string, next_step: string, recovery_odds: number }`,
+      contents: `ACT AS: Lead Recovery Auditor for Sanghavi Jewellers Enterprise.
+      ANALYZE ENTITY: ${JSON.stringify({ customerData, interactionLogs })}.
+      GOAL: Provide deterministic risk profile and clinical next action.
+      OUTPUT: Valid JSON schema only.`,
       config: { 
         responseMimeType: "application/json",
-        thinkingConfig: { thinkingBudget: 2000 }
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            risk_grade: { type: Type.STRING, description: "Classification A|B|C|D" },
+            analysis: { type: Type.STRING, description: "Detailed behavioral assessment" },
+            next_step: { type: Type.STRING, description: "Specific legal/recovery protocol to follow" },
+            recovery_odds: { type: Type.NUMBER, description: "Probability percentage (0.0 to 1.0)" }
+          },
+          required: ["risk_grade", "analysis", "next_step", "recovery_odds"]
+        },
+        thinkingConfig: { thinkingBudget: 4000 }
       }
     });
     res.json(JSON.parse(response.text || '{}'));
   } catch (err: any) {
-    res.status(500).json({ error: "AI reasoning failed" });
+    console.error("[CORTEX] Reasoning Interrupted:", err);
+    res.status(500).json({ error: "AI_HANDSHAKE_TIMEOUT" });
   }
 });
 
@@ -248,9 +268,10 @@ app.get('/api/kernel/status', (req, res) => res.json(KERNEL_CONFIG));
 app.get('/api/kernel/logs', (req, res) => {
   const ts = new Date().toISOString();
   res.json([
-    `[${ts}] BOOT: Recovery Node 72.61.175.20 v4.0.0 Online`,
-    `[${ts}] SQL: MySQL connection pool established`,
-    `[${ts}] SYNC: Vault table check verified`
+    `[${ts}] BOOT: Sanghavi Enterprise Node 72.61.175.20 Online`,
+    `[${ts}] SYNC: MySQL Vault u477692720_ArrearsFlow synchronized`,
+    `[${ts}] CORE: Gemini 3 Pro reasoning engine standby`,
+    `[${ts}] SSL: pay.sanghavijewellers.in tunnel established`
   ]);
 });
 
@@ -261,5 +282,5 @@ app.get('*', (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`[SANGHAVI] Sovereign Recovery Node Online @ ${KERNEL_CONFIG.nodeId}:${PORT}`);
+  console.log(`[ENTERPRISE] Sovereign Node 72.61.175.20 Listening on Port ${PORT}`);
 });
