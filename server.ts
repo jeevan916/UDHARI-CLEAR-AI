@@ -10,11 +10,11 @@ import fs from 'fs';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// --- RAW LOGGING CORE ---
+// --- SECURE CONFIG LOADING & DIAGNOSTICS ---
 const SYSTEM_IDENTITY = {
   node_id: process.env.NODE_ID || "72.61.175.20",
   environment: process.env.NODE_ENV || "production",
-  version: "6.6.0-VAULT-CORE",
+  version: "6.7.0-TRACE-ACTIVE",
   status: "BOOTING",
   db_health: "DISCONNECTED",
   last_error: null as any,
@@ -31,27 +31,31 @@ const logDebug = (msg: string) => {
   if (SYSTEM_IDENTITY.debug_logs.length > 200) SYSTEM_IDENTITY.debug_logs.shift();
 };
 
-// --- SECURE CONFIG LOADING ---
 const envPath = path.resolve('.env');
 if (fs.existsSync(envPath)) {
-  logDebug(`Found .env at: ${envPath}`);
+  logDebug(`[ENV] Loading local file: ${envPath}`);
   dotenv.config({ path: envPath });
 } else {
-  logDebug(`WARNING: No .env file found at ${envPath}. Checking system process.`);
+  logDebug(`[ENV] No .env file at ${envPath}. Using system-level process variables.`);
   dotenv.config(); 
 }
 
-// Verify ENV presence (Masked)
-const keysToVerify = ['DB_HOST', 'DB_USER', 'DB_PASSWORD', 'DB_NAME', 'API_KEY'];
+// Masked check of environment variables
+const keysToVerify = ['DB_HOST', 'DB_USER', 'DB_PASSWORD', 'DB_NAME', 'API_KEY', 'PORT', 'NODE_ENV'];
 keysToVerify.forEach(k => {
-  SYSTEM_IDENTITY.env_check[k] = process.env[k] ? 'PRESENT (****)' : 'MISSING';
+  const val = process.env[k];
+  if (!val) {
+    SYSTEM_IDENTITY.env_check[k] = "MISSING";
+    logDebug(`[WARN] Config Key ${k} is NOT SET.`);
+  } else {
+    SYSTEM_IDENTITY.env_check[k] = `PRESENT (${val.substring(0, 2)}***${val.substring(val.length - 1)})`;
+  }
 });
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Initialize AI
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
 
 const getDbConfig = (host: string) => ({
@@ -61,36 +65,36 @@ const getDbConfig = (host: string) => ({
   database: process.env.DB_NAME,
   port: Number(process.env.DB_PORT) || 3306,
   waitForConnections: true,
-  connectionLimit: 5,
+  connectionLimit: 10,
   queueLimit: 0,
   enableKeepAlive: true,
   keepAliveInitialDelay: 10000,
-  connectTimeout: 15000
+  connectTimeout: 20000
 });
 
 let pool: mysql.Pool;
 
 const bootSystem = async () => {
   logDebug("Initializing Recovery Engine...");
-  logDebug(`Target Node: ${SYSTEM_IDENTITY.node_id}`);
   
-  if (!process.env.DB_USER) {
-    logDebug("CRITICAL ERROR: DB_USER is undefined. Environment variables failed to load.");
-    SYSTEM_IDENTITY.status = "CRITICAL_FAILURE";
+  if (!process.env.DB_USER || !process.env.DB_HOST) {
+    logDebug("CRITICAL: Database configuration is incomplete. Check .env variables.");
+    SYSTEM_IDENTITY.status = "HALTED";
     return;
   }
 
-  const hosts = [process.env.DB_HOST || '127.0.0.1', 'localhost'];
+  const hosts = [process.env.DB_HOST, '127.0.0.1', 'localhost'];
   let connected = false;
 
   for (const host of hosts) {
     if (connected) break;
     try {
-      logDebug(`Attempting Handshake with ${host}...`);
+      logDebug(`Testing Route: ${host}...`);
       const tempPool = mysql.createPool(getDbConfig(host));
       
+      // Force a connection attempt to trigger errors immediately
       const conn = await tempPool.getConnection();
-      logDebug(`SUCCESS: Connection established on ${host}`);
+      logDebug(`HANDSHAKE SUCCESS: Node linked on host ${host}`);
       
       pool = tempPool;
       SYSTEM_IDENTITY.db_health = "CONNECTED";
@@ -98,16 +102,16 @@ const bootSystem = async () => {
       conn.release();
       connected = true;
 
-      await introspectDatabase();
+      await introspectVault();
     } catch (err: any) {
       const errorDetail = {
-        code: err.code,
+        code: err.code || 'NO_CODE',
         errno: err.errno,
         sqlState: err.sqlState,
-        message: err.message
+        message: err.message,
+        host: host
       };
-      const logMsg = `HANDSHAKE_FAILED [${host}]: ${err.code} - ${err.message}`;
-      logDebug(logMsg);
+      logDebug(`HANDSHAKE FAILED [${host}]: ${err.code} - ${err.message}`);
       SYSTEM_IDENTITY.last_error = errorDetail;
     }
   }
@@ -115,51 +119,40 @@ const bootSystem = async () => {
   if (!connected) {
     SYSTEM_IDENTITY.status = "DEGRADED";
     SYSTEM_IDENTITY.db_health = "FAILED";
-    logDebug("FATAL: All database connection routes exhausted. Verify Hostinger Firewall and DB Privileges.");
+    logDebug("FATAL: All database connection routes exhausted.");
   }
 };
 
-const introspectDatabase = async () => {
+const introspectVault = async () => {
   try {
-    logDebug("Starting Memory Vault introspection...");
+    logDebug("Querying Memory Vault (SQL Schema)...");
     const [tables]: any = await pool.execute('SHOW TABLES');
     const tableList = tables.map((t: any) => Object.values(t)[0]);
-    logDebug(`Detected Cluster Assets: ${tableList.join(', ')}`);
+    logDebug(`Available Tables: ${tableList.join(', ')}`);
     
     if (tableList.includes('customers')) {
       const [columns]: any = await pool.execute('DESCRIBE customers');
       SYSTEM_IDENTITY.database_structure = columns;
-      logDebug("Memory Vault: 'customers' schema mapped successfully.");
+      logDebug("Table 'customers' successfully mapped to Memory Vault.");
     } else {
-      logDebug("Vault Empty: Attempting auto-provisioning of Entity tables...");
-      await pool.execute(`CREATE TABLE IF NOT EXISTS customers (
-        id VARCHAR(50) PRIMARY KEY, name VARCHAR(255) NOT NULL, phone VARCHAR(20) NOT NULL UNIQUE,
-        unique_payment_code VARCHAR(20) UNIQUE NOT NULL, current_balance DECIMAL(15, 2) DEFAULT 0.00,
-        current_gold_balance DECIMAL(15, 3) DEFAULT 0.000, is_active BOOLEAN DEFAULT TRUE,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )`);
-      logDebug("Asset provisioning complete.");
+      logDebug("WARNING: Table 'customers' not found. System is in EMPTY_VAULT state.");
     }
   } catch (err: any) {
-    logDebug(`INTROSPECTION_ERROR: ${err.message}`);
+    logDebug(`VAULT_ERROR: ${err.message}`);
+    SYSTEM_IDENTITY.database_structure = [{ error: err.message }];
   }
 };
 
 bootSystem();
 
-// --- API ENDPOINTS ---
-
-app.get('/api/system/health', (req, res) => {
-  // Always return 200 for health check so we can see the logs even if DB is down
-  res.json(SYSTEM_IDENTITY);
-});
+app.get('/api/system/health', (req, res) => res.json(SYSTEM_IDENTITY));
 
 app.get('/api/customers', async (req: Request, res: Response) => {
   if (SYSTEM_IDENTITY.db_health !== "CONNECTED") {
     return res.status(503).json({ 
       error: "DATABASE_OFFLINE", 
       details: SYSTEM_IDENTITY.last_error,
-      logs: SYSTEM_IDENTITY.debug_logs 
+      handshake_logs: SYSTEM_IDENTITY.debug_logs 
     });
   }
   try {
@@ -197,7 +190,7 @@ app.post('/api/kernel/reason', async (req: Request, res: Response) => {
   try {
     const response = await ai.models.generateContent({
       model: "gemini-3-pro-preview",
-      contents: `AUDIT ENTITY: ${JSON.stringify(customerData)}. Output JSON risk profile with risk_score, risk_level, analysis, action_plan.`,
+      contents: `Audit this entity data: ${JSON.stringify(customerData)}. Output JSON risk profile.`,
       config: { 
         responseMimeType: "application/json",
         responseSchema: {
@@ -222,4 +215,4 @@ app.use(express.static(path.join(__dirname, 'dist')));
 app.get('*', (req: Request, res: Response) => res.sendFile(path.join(__dirname, 'dist', 'index.html')));
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`[CORE] Vault Engine Active on Port ${PORT}`));
+app.listen(PORT, () => console.log(`[CORE] Trace Active on Port ${PORT}`));

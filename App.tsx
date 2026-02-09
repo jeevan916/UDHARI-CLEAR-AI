@@ -169,6 +169,8 @@ const App: React.FC = () => {
                 dbStatus={state.dbStatus}
                 dbStructure={state.dbStructure}
                 systemLogs={state.systemLogs}
+                envCheck={state.envCheck}
+                lastError={state.lastError}
               />
             )}
 

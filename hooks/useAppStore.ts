@@ -17,6 +17,8 @@ export const useAppStore = () => {
   const [systemLogs, setSystemLogs] = useState<string[]>([]);
   const [dbStatus, setDbStatus] = useState<'CONNECTED' | 'OFFLINE'>('OFFLINE');
   const [dbStructure, setDbStructure] = useState<any[]>([]);
+  const [envCheck, setEnvCheck] = useState<Record<string, string>>({});
+  const [lastError, setLastError] = useState<any>(null);
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
@@ -42,30 +44,31 @@ export const useAppStore = () => {
 
   const syncLedger = useCallback(async () => {
     if (!user) return;
-    addLog("Initiating Secure Telemetry Handshake...");
+    addLog("Requesting Global Trace...");
     try {
-      // 1. Always check health first - this endpoint is designed to never 503
       const healthRes = await axios.get('/api/system/health');
       const health = healthRes.data;
 
       if (health.database_structure) setDbStructure(health.database_structure);
+      if (health.env_check) setEnvCheck(health.env_check);
+      if (health.last_error) setLastError(health.last_error);
       
       if (health.debug_logs) {
+        // Only add logs that aren't already there
         health.debug_logs.forEach((log: string) => addLog(`REMOTE: ${log}`));
       }
 
       if (health.db_health !== 'CONNECTED') {
          setDbStatus('OFFLINE');
-         addLog(`CRITICAL: Handshake failed. Error Code: ${health.last_error?.code || 'UNKNOWN'}`);
-         return; // Don't attempt to fetch customers if we know it's down
+         addLog(`CRITICAL: Handshake failed. Status: ${health.db_health}`);
+         return;
       }
 
-      // 2. Fetch customers only if health confirmed
       const res = await axios.get('/api/customers');
       if (res.data && Array.isArray(res.data)) {
         setCustomers(res.data.length > 0 ? res.data : INITIAL_CUSTOMERS);
         setDbStatus('CONNECTED');
-        addLog(`SYNC_OK: Node Cluster Verified.`);
+        addLog(`SYNC_OK: Table Data Received.`);
       }
     } catch (e: any) {
       const detail = e.response?.data?.details || e.message;
@@ -88,7 +91,6 @@ export const useAppStore = () => {
     try {
       return analyzeCustomerBehavior(activeCustomer, gradeRules, callLogs);
     } catch (err) {
-      console.error("Behavior analysis failed", err);
       return null;
     }
   }, [activeCustomer, gradeRules, callLogs]);
@@ -145,7 +147,7 @@ export const useAppStore = () => {
   const handleAiInquiry = async () => {
     if (!activeCustomer) return null;
     setIsAiLoading(true);
-    addLog(`CORTEX: Analyzing Behavioral Trace for ${activeCustomer.uniquePaymentCode}...`);
+    addLog(`CORTEX: Analyzing Trace ${activeCustomer.uniquePaymentCode}...`);
     try {
       const res = await axios.post('/api/kernel/reason', {
         customerData: { name: activeCustomer.name, balance: activeCustomer.currentBalance }
@@ -158,10 +160,10 @@ export const useAppStore = () => {
         next_step: res.data.action_plan
       };
       setAiStrategy(strategy);
-      addLog("CORTEX: Strategy Analysis Generated.");
+      addLog("CORTEX: Analysis Generated.");
       return strategy;
     } catch (e) {
-      addLog("CORTEX_ERR: Reasoning Cycle Failed.");
+      addLog("CORTEX_ERR: Inquiry timed out.");
       return null;
     } finally {
       setIsAiLoading(false);
@@ -172,7 +174,7 @@ export const useAppStore = () => {
 
   return {
     state: { 
-      user, activeView, customers, systemLogs, dbStatus, dbStructure, isAiLoading, isAdmin, 
+      user, activeView, customers, systemLogs, dbStatus, dbStructure, envCheck, lastError, isAiLoading, isAdmin, 
       activeCustomer, gradeRules, expandedMenus, isMobileMenuOpen, searchTerm, 
       filterGrade, callLogs, whatsappLogs, templates, integrations, aiStrategy, 
       behavior, filteredCustomers, isEntryModalOpen, editingTransaction, entryDefaults, isEditModalOpen
@@ -185,12 +187,12 @@ export const useAppStore = () => {
       setGradeRules, setTemplates, handleAddCallLog: (log: CommunicationLog) => setCallLogs(prev => [log, ...prev]),
       setIsEntryModalOpen, setIsEditModalOpen, setEditingTransaction, setEntryDefaults,
       handleCommitEntry: (entry: any) => { addLog("LEDGER: Entry committed."); setIsEntryModalOpen(false); },
-      handleUpdateProfile: (updates: any) => { addLog("PROFILE: Node metadata updated."); setIsEditModalOpen(false); },
+      handleUpdateProfile: (updates: any) => { addLog("PROFILE: Node updated."); setIsEditModalOpen(false); },
       addCustomer,
       handleDeleteTransaction,
       openEditModal,
-      enrichCustomerData: () => addLog("FORENSICS: Enrichment started."),
-      updateCustomerDeepvueData: (u: any) => addLog("FORENSICS: Intelligence updated."),
+      enrichCustomerData: () => addLog("FORENSICS: Enrichment cycle."),
+      updateCustomerDeepvueData: (u: any) => addLog("FORENSICS: Intel updated."),
       setPrimaryContact: (id: string) => addLog("CONTACT: Primary switched."),
       updateIntegrationConfig: (id: string, f: any) => addLog(`INFRA: ${id} updated.`)
     }
