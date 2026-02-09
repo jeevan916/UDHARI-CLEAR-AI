@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { XCircle, MessageSquare, Smartphone, Send, Users, CheckCircle2, AlertCircle, Loader2, Terminal, ShieldCheck } from 'lucide-react';
 import { Customer, Template } from '../types';
@@ -50,7 +49,7 @@ export const BulkMessageModal: React.FC<BulkMessageModalProps> = ({
     setIsSending(true);
     setLogs(prev => [
        `[KERNEL] Initiating Batch Protocol: ${selectedChannel.toUpperCase()}`,
-       `[KERNEL] Node 139.59.10.70 Authenticated`,
+       `[KERNEL] Hostinger Node Authenticated`,
        `[KERNEL] Target Entities: ${selectedCustomers.length}`
     ]);
 
@@ -127,7 +126,7 @@ export const BulkMessageModal: React.FC<BulkMessageModalProps> = ({
                 <div className="flex items-center gap-2 mt-1">
                    <ShieldCheck size={12} className="text-emerald-500"/>
                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                      Production Node 139.59.10.70
+                      Production Core: pay.sanghavijewellers.in
                    </p>
                 </div>
              </div>

@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { ShieldAlert, Terminal, Search, Filter, Lock, Server, Globe, Activity, FileJson } from 'lucide-react';
 
@@ -11,7 +10,6 @@ export const AuditLogView: React.FC<AuditLogViewProps> = ({ systemLogs, isAdmin 
   const [searchTerm, setSearchTerm] = useState('');
   const [filter, setFilter] = useState('ALL');
 
-  // We combine the live systemLogs with some mock "Raw Webhook" logs to simulate a real payment audit trail
   const combinedLogs = [
     ...systemLogs.map((log, i) => ({
       id: `SYS-${1000 + i}`,
@@ -22,10 +20,9 @@ export const AuditLogView: React.FC<AuditLogViewProps> = ({ systemLogs, isAdmin 
       hash: `sha256-${Math.random().toString(36).substring(7)}`,
       type: 'SYSTEM'
     })),
-    // Mocking some historical payment gateway webhooks for the "Audit" feel
     { id: 'WH-RZP-9921', timestamp: '10:42:12 AM', actor: 'RAZORPAY_WEBHOOK', action: 'PAYMENT_AUTHORIZED', details: 'amount: 2320000, status: captured, method: card', hash: 'sha256-a1b2c3d4', type: 'WEBHOOK' },
     { id: 'WH-SETU-8821', timestamp: '09:15:00 AM', actor: 'SETU_UPI_DEEPLINK', action: 'CREDIT_CONFIRMATION', details: 'utr: 3322118822, amount: 500000, vpa: customer@upi', hash: 'sha256-e5f6g7h8', type: 'WEBHOOK' },
-    { id: 'SEC-LOG-1102', timestamp: '08:30:45 AM', actor: 'ADMIN_CONSOLE', action: 'AUTH_HANDSHAKE', details: 'Session established from IP 103.21.44.12', hash: 'sha256-i9j0k1l2', type: 'SECURITY' }
+    { id: 'SEC-LOG-1102', timestamp: '08:30:45 AM', actor: 'ADMIN_CONSOLE', action: 'AUTH_HANDSHAKE', details: 'Session established from verified IP', hash: 'sha256-i9j0k1l2', type: 'SECURITY' }
   ].reverse();
 
   const filteredLogs = combinedLogs.filter(log => {
@@ -39,7 +36,6 @@ export const AuditLogView: React.FC<AuditLogViewProps> = ({ systemLogs, isAdmin 
 
   return (
     <div className="space-y-8 animate-in fade-in pb-20">
-      {/* Header */}
       <div className="bg-slate-900 text-white p-10 rounded-[3rem] shadow-2xl border border-slate-800 relative overflow-hidden">
          <div className="absolute top-0 right-0 p-10 opacity-10">
             <ShieldAlert size={120}/>
@@ -59,7 +55,7 @@ export const AuditLogView: React.FC<AuditLogViewProps> = ({ systemLogs, isAdmin 
          <div className="flex gap-4 mt-8">
             <div className="px-6 py-3 bg-white/5 border border-white/10 rounded-2xl flex items-center gap-3">
                <Server size={16} className="text-emerald-400"/>
-               <span className="text-[10px] font-bold uppercase tracking-widest">Node: 139.59.10.70</span>
+               <span className="text-[10px] font-bold uppercase tracking-widest">Node: PRODUCTION_CLUSTER</span>
             </div>
             <div className="px-6 py-3 bg-white/5 border border-white/10 rounded-2xl flex items-center gap-3">
                <Lock size={16} className="text-amber-400"/>
@@ -68,7 +64,6 @@ export const AuditLogView: React.FC<AuditLogViewProps> = ({ systemLogs, isAdmin 
          </div>
       </div>
 
-      {/* Controls */}
       <div className="flex flex-col md:flex-row gap-6">
          <div className="flex-1 bg-white p-4 rounded-[2rem] shadow-xl border border-slate-100 flex items-center gap-4 px-6">
             <Search className="text-slate-300" size={20}/>
@@ -93,7 +88,6 @@ export const AuditLogView: React.FC<AuditLogViewProps> = ({ systemLogs, isAdmin 
          </div>
       </div>
 
-      {/* Audit Table */}
       <div className="bg-white rounded-[2.5rem] shadow-2xl border border-slate-100 overflow-hidden">
          <div className="overflow-x-auto">
             <table className="w-full text-left min-w-[1000px]">

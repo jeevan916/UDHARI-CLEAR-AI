@@ -1,4 +1,3 @@
-
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { 
@@ -42,7 +41,7 @@ export const useAppStore = () => {
 
   const syncLedger = useCallback(async () => {
     if (!user) return;
-    addLog("Initializing secure handshake with 139.59.10.70...");
+    addLog("Initializing secure handshake with Production Node...");
     try {
       const health = await axios.get('/api/system/health');
       if (health.data.db_health !== 'CONNECTED') {
@@ -59,7 +58,6 @@ export const useAppStore = () => {
       const detail = e.response?.data?.details || e.message;
       addLog(`CRITICAL: ${detail}`);
       setDbStatus('OFFLINE');
-      // If server is up but DB is down, we use initial data as fallback
       setCustomers(INITIAL_CUSTOMERS);
     }
   }, [user, addLog]);
@@ -82,7 +80,6 @@ export const useAppStore = () => {
     });
   }, [customers, searchTerm, filterGrade, gradeRules, callLogs]);
 
-  // Fix: Implement missing addCustomer action
   const addCustomer = useCallback((data: any) => {
     const newCustomer: Customer = {
       id: `c_${Date.now()}`,
@@ -105,7 +102,6 @@ export const useAppStore = () => {
     addLog(`ENTITY: ${newCustomer.name} onboarded.`);
   }, [addLog]);
 
-  // Fix: Implement missing handleDeleteTransaction action
   const handleDeleteTransaction = useCallback((txId: string) => {
     setCustomers(prev => prev.map(c => {
       if (c.id === selectedId) {
@@ -116,19 +112,15 @@ export const useAppStore = () => {
     addLog("LEDGER: Entry purged.");
   }, [selectedId, addLog]);
 
-  // Fix: Implement missing openEditModal action
   const openEditModal = useCallback((tx: Transaction) => {
     setEditingTransaction(tx);
     setIsEntryModalOpen(true);
   }, []);
 
-  // Fix: Implement missing enrichCustomerData action
   const enrichCustomerData = useCallback(() => {
     addLog("FORENSICS: Enrichment cycle started.");
-    // Simulation of enrichment process
   }, [addLog]);
 
-  // Fix: Implement missing updateCustomerDeepvueData action
   const updateCustomerDeepvueData = useCallback((updates: any) => {
     setCustomers(prev => prev.map(c => {
       if (c.id === selectedId) {
@@ -139,7 +131,6 @@ export const useAppStore = () => {
     addLog("FORENSICS: Node intelligence updated.");
   }, [selectedId, addLog]);
 
-  // Fix: Implement missing setPrimaryContact action
   const setPrimaryContact = useCallback((contactId: string) => {
     setCustomers(prev => prev.map(c => {
       if (c.id === selectedId && c.contactList) {
@@ -152,7 +143,6 @@ export const useAppStore = () => {
     }));
   }, [selectedId]);
 
-  // Fix: Implement missing updateIntegrationConfig action
   const updateIntegrationConfig = useCallback((nodeId: string, fields: IntegrationField[]) => {
     setIntegrations(prev => prev.map(n => n.id === nodeId ? { ...n, fields } : n));
     addLog(`INFRA: ${nodeId} node reconfigured.`);
@@ -202,7 +192,6 @@ export const useAppStore = () => {
       setIsEntryModalOpen, setIsEditModalOpen, setEditingTransaction, setEntryDefaults,
       handleCommitEntry: (entry: any) => { addLog("LEDGER: Entry committed."); setIsEntryModalOpen(false); },
       handleUpdateProfile: (updates: any) => { addLog("PROFILE: Node metadata updated."); setIsEditModalOpen(false); },
-      // Fix: Add the missing members to the actions return object
       addCustomer,
       handleDeleteTransaction,
       openEditModal,

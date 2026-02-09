@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Server, Wifi, Activity, Database, Lock, Globe, CreditCard, MessageSquare, ScanFace, Landmark, Settings2 } from 'lucide-react';
 import { IntegrationNode, IntegrationField } from '../types';
@@ -66,22 +65,22 @@ export const IntegrationsView: React.FC<Props> = ({ integrations, onUpdateConfig
              <div className="p-4 bg-white/10 rounded-2xl"><Server size={32}/></div>
              <div>
                 <h3 className="text-2xl font-black uppercase tracking-tight">Cluster Configuration</h3>
-                <p className="text-blue-400 font-mono text-xs mt-1">139.59.10.70 (Ubuntu 22.04 LTS)</p>
+                <p className="text-blue-400 font-mono text-xs mt-1">Hostinger Node: 72.61.175.20</p>
              </div>
           </div>
           
           <div className="space-y-4 font-mono text-xs">
              <div className="flex justify-between items-center p-4 bg-white/5 rounded-xl border border-white/5">
-                <span className="text-slate-400">SSH_FINGERPRINT</span>
-                <span className="text-emerald-400">SHA256:ha8s9d7has9d7h...</span>
+                <span className="text-slate-400">ENDPOINT_ALIAS</span>
+                <span className="text-emerald-400">pay.sanghavijewellers.in</span>
              </div>
              <div className="flex justify-between items-center p-4 bg-white/5 rounded-xl border border-white/5">
                 <span className="text-slate-400">FIREWALL_RULES</span>
-                <span className="text-blue-400">ALLOW 443, 80, 22 (Whitelisted Only)</span>
+                <span className="text-blue-400">ALLOW 443, 80 (Whitelisted Only)</span>
              </div>
              <div className="flex justify-between items-center p-4 bg-white/5 rounded-xl border border-white/5">
-                <span className="text-slate-400">DB_REPLICATION</span>
-                <span className="text-amber-400">SYNCING (Lag: 0.04s)</span>
+                <span className="text-slate-400">DB_STATUS</span>
+                <span className="text-amber-400">u477692720_ArrearsFlow (LOCKED)</span>
              </div>
           </div>
        </div>

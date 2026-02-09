@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Send, MessageCircle, UserCircle, Search, Sparkles, AlertCircle, CheckCircle2, ChevronLeft, LayoutTemplate, X, BadgeCheck } from 'lucide-react';
 import { whatsappService } from '../services/whatsappService';
@@ -70,7 +69,7 @@ export const WhatsAppChatView: React.FC<WhatsAppChatViewProps> = ({ customers, i
       setInputText('');
       setActiveTemplatePayload(null);
     } catch (err: any) {
-      // API Fallback is handled in service, but if any critical error leaks:
+      // API Fallback is handled in service
       const newMessage: Message = {
         id: Date.now().toString(),
         body: inputText,
@@ -93,10 +92,10 @@ export const WhatsAppChatView: React.FC<WhatsAppChatViewProps> = ({ customers, i
     const varMap: Record<string, string> = {
         '{{customer_name}}': selectedCustomer.name,
         '{{balance}}': selectedCustomer.currentBalance.toLocaleString('en-IN'),
-        '{{payment_link}}': `https://pay.auragold.com/${selectedCustomer.uniquePaymentCode}`,
+        '{{payment_link}}': `https://pay.sanghavijewellers.in/${selectedCustomer.uniquePaymentCode}`,
         '{{1}}': selectedCustomer.name,
         '{{2}}': selectedCustomer.currentBalance.toLocaleString('en-IN'),
-        '{{3}}': `https://pay.auragold.com/${selectedCustomer.uniquePaymentCode}`,
+        '{{3}}': `https://pay.sanghavijewellers.in/${selectedCustomer.uniquePaymentCode}`,
         '{#var#}': selectedCustomer.currentBalance.toLocaleString('en-IN')
     };
 
@@ -248,11 +247,6 @@ export const WhatsAppChatView: React.FC<WhatsAppChatViewProps> = ({ customers, i
                           <p className="text-xs text-slate-600 line-clamp-2">{t.content}</p>
                         </button>
                       ))}
-                      {templates.filter(t => t.channel === 'whatsapp' && (t.status === 'active' || t.status === 'APPROVED')).length === 0 && (
-                          <div className="p-4 text-center text-slate-400 text-xs font-bold uppercase">
-                             No Active or Approved Templates Found
-                          </div>
-                      )}
                     </div>
                  </div>
                )}
@@ -285,7 +279,7 @@ export const WhatsAppChatView: React.FC<WhatsAppChatViewProps> = ({ customers, i
                   </button>
                </div>
                <p className="text-[9px] font-bold text-slate-300 uppercase tracking-widest text-center mt-4 hidden md:block">
-                 Infrastructure Node 139.59.10.70 via Meta Cloud API
+                 Production Cluster Node (Hostinger) via Meta Cloud API
                </p>
             </div>
           </>

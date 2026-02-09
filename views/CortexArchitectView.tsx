@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   Zap, BrainCircuit, Terminal, Server, ShieldCheck, Code, 
@@ -20,7 +19,7 @@ export const CortexArchitectView: React.FC = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [selectedFile, setSelectedFile] = useState(MOCK_FILES[0]);
   const [terminalLogs, setTerminalLogs] = useState<string[]>([
-    "Handshake with 139.59.10.70 verified...",
+    "Handshake with Production Core verified...",
     "Cortex Engine v4.2.0 initialising...",
     "Self-repair module: READY",
     "Awaiting root instructions."
@@ -63,7 +62,7 @@ export const CortexArchitectView: React.FC = () => {
     addLog("Applying patch to filesystem...");
     
     await new Promise(r => setTimeout(r, 1500));
-    addLog(`SUCCESS: ${proposedFix.fileAffected} rewritten on node 139.59.10.70`);
+    addLog(`SUCCESS: ${proposedFix.fileAffected} rewritten on local node`);
     addLog("Triggering system hot-reload...");
     
     setTimeout(() => {
@@ -77,7 +76,6 @@ export const CortexArchitectView: React.FC = () => {
   return (
     <div className="flex flex-col gap-6 lg:h-[calc(100vh-140px)] animate-in fade-in duration-500">
       
-      {/* Header / Console Status */}
       <div className="bg-slate-900 text-white p-6 lg:p-10 rounded-[2.5rem] shadow-xl relative overflow-hidden shrink-0">
          <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-20"></div>
          <div className="relative z-10 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
@@ -107,13 +105,8 @@ export const CortexArchitectView: React.FC = () => {
          </div>
       </div>
 
-      {/* Main Workspace - Column on Mobile, Row on Desktop */}
       <div className="flex flex-col lg:flex-row gap-6 flex-1 min-h-0">
-         
-         {/* Left Panel: Controls (Scrollable on mobile, Fixed width on desktop) */}
          <div className="w-full lg:w-[400px] flex flex-col gap-6 shrink-0 h-auto lg:h-full lg:overflow-y-auto custom-scrollbar">
-            
-            {/* File Explorer */}
             <div className="bg-white rounded-[2.5rem] p-6 border border-slate-100 shadow-xl flex flex-col">
                <h3 className="text-xs font-black uppercase text-slate-400 tracking-widest mb-4 flex items-center gap-2 shrink-0">
                   <FileCode size={14}/> Active File System
@@ -133,7 +126,6 @@ export const CortexArchitectView: React.FC = () => {
                </div>
             </div>
 
-            {/* AI Command Input */}
             <div className="bg-[#0f172a] rounded-[2.5rem] p-6 border border-white/5 shadow-2xl flex flex-col">
                <h3 className="text-xs font-black uppercase text-blue-400 tracking-widest mb-4 flex items-center gap-2">
                   <Bot size={14}/> Command Engine
@@ -155,10 +147,7 @@ export const CortexArchitectView: React.FC = () => {
             </div>
          </div>
 
-         {/* Right Panel: Terminal & Diff (Scrollable content) */}
          <div className="flex-1 bg-[#010409] rounded-[2.5rem] border border-white/5 shadow-2xl flex flex-col overflow-hidden min-h-[500px]">
-            
-            {/* Terminal Output - Fixed Height Section */}
             <div className="h-48 lg:h-56 border-b border-white/5 p-6 font-mono text-emerald-400/80 text-[10px] lg:text-xs overflow-y-auto custom-scrollbar flex flex-col gap-2 shrink-0 bg-black/20">
                {terminalLogs.map((log, i) => (
                   <div key={i} className="flex gap-3">
@@ -169,7 +158,6 @@ export const CortexArchitectView: React.FC = () => {
                <div ref={terminalEndRef} />
             </div>
 
-            {/* Dynamic Content Area - Fills remaining space */}
             <div className="flex-1 p-6 lg:p-10 overflow-y-auto custom-scrollbar relative">
                {!proposedFix && !isProcessing && (
                   <div className="h-full flex flex-col items-center justify-center text-slate-700 opacity-50 py-10">

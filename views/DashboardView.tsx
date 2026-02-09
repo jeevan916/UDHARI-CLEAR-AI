@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { 
   ShieldCheck, Landmark, Activity, Database, Server, Cpu, Globe, TrendingUp, Zap, Clock
@@ -11,15 +10,12 @@ import { useAppStore } from '../hooks/useAppStore';
 export const DashboardView: React.FC<{ 
   customers: Customer[]; systemLogs: string[]; gradeRules: GradeRule[] 
 }> = ({ customers, systemLogs, gradeRules }) => {
-  const { state } = useAppStore();
-  
   const totalLiability = customers.reduce((s, c) => s + Number(c.currentBalance), 0);
   const totalGold = customers.reduce((s, c) => s + (Number(c.currentGoldBalance) || 0), 0);
 
   return (
     <div className="space-y-8 animate-in fade-in duration-1000 max-w-[1600px] mx-auto pb-24">
       
-      {/* ENTERPRISE PLATFORM STATUS HEADER */}
       <div className="bg-[#0d1117] text-white p-12 rounded-[4rem] shadow-[0_25px_50px_-12px_rgba(0,0,0,0.5)] border border-white/5 relative overflow-hidden flex flex-col md:flex-row justify-between items-center gap-10">
         <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-30 pointer-events-none"></div>
         <div className="relative z-10">
@@ -55,7 +51,6 @@ export const DashboardView: React.FC<{
         </div>
       </div>
 
-      {/* METRICS */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-8">
         <div className="bg-white p-12 rounded-[3.5rem] shadow-2xl border border-slate-100 group hover:border-blue-300 transition-all relative overflow-hidden">
            <div className="absolute -bottom-6 -right-6 text-slate-50 opacity-10 group-hover:opacity-20 transition-opacity"><Landmark size={180}/></div>
@@ -92,7 +87,6 @@ export const DashboardView: React.FC<{
         </div>
       </div>
 
-      {/* FEED */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 h-[650px]">
         <div className="lg:col-span-7 bg-white rounded-[4rem] shadow-2xl border border-slate-100 overflow-hidden flex flex-col">
            <div className="p-12 border-b border-slate-50 flex justify-between items-center bg-slate-50/30">

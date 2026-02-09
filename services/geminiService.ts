@@ -1,10 +1,9 @@
-
 import axios from 'axios';
 import { Customer, AiStrategy, CommunicationLog, GradeRule } from '../types';
 
 /**
  * Enterprise AI Bridge
- * Interfaces with the secure Authority Kernel at 139.59.10.70
+ * Interfaces with the secure Authority Kernel at pay.sanghavijewellers.in
  */
 
 export const generateEnterpriseStrategy = async (customer: Customer, callLogs: CommunicationLog[] = []): Promise<AiStrategy | null> => {

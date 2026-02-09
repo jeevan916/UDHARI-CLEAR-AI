@@ -1,4 +1,3 @@
-
 import express, { Request, Response } from 'express';
 import cors from 'cors';
 import path from 'path';
@@ -12,12 +11,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // --- SECURE CONFIG LOADING ---
-// User specified path: public_html/.builds/config/.env
-// We try the specific path, falling back to standard locations
 const envPaths = [
-  // Fixed: Replaced process.cwd() with path.resolve('.') to resolve the error "Property 'cwd' does not exist on type 'Process'"
   path.resolve('.', '.builds/config/.env'),
-  // Fixed: Replaced process.cwd() with path.resolve('.') to resolve the error "Property 'cwd' does not exist on type 'Process'"
   path.resolve('.', '.env'),
   path.resolve(__dirname, '../.builds/config/.env')
 ];
@@ -41,10 +36,8 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Initialize AI with the key from our newly loaded environment
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
 
-// Attempt 'localhost' (socket) then '127.0.0.1' (TCP) for maximum VPS compatibility
 const getDbConfig = (host: string) => ({
   host: host,
   user: process.env.DB_USER,
@@ -61,7 +54,7 @@ const getDbConfig = (host: string) => ({
 let pool: mysql.Pool;
 
 const SYSTEM_IDENTITY = {
-  node_ip: "139.59.10.70",
+  node_id: "CORE_PRODUCTION_PROXIMA",
   environment: "PRODUCTION_CORE",
   version: "6.3.0-RESILIENT",
   status: "INITIALIZING",
@@ -70,7 +63,6 @@ const SYSTEM_IDENTITY = {
   config_path_attempted: envPaths[0]
 };
 
-// --- BOOT SEQUENCE ---
 const bootSystem = async () => {
   if (!process.env.DB_USER) {
     console.error("[FATAL] DB_USER not found in environment. Logic aborted.");
@@ -79,7 +71,7 @@ const bootSystem = async () => {
     return;
   }
 
-  const hosts = [process.env.DB_HOST || '127.0.0.1', 'localhost', '127.0.0.1'];
+  const hosts = [process.env.DB_HOST || '127.0.0.1', 'localhost'];
   let connected = false;
 
   for (const host of hosts) {
@@ -92,7 +84,6 @@ const bootSystem = async () => {
       pool = tempPool;
       console.log(`[SYSTEM] DATABASE_LINK: Authorized and Established on ${host}.`);
       
-      // Verification of primary entity schema
       await conn.execute(`CREATE TABLE IF NOT EXISTS customers (
         id VARCHAR(50) PRIMARY KEY, name VARCHAR(255) NOT NULL, phone VARCHAR(20) NOT NULL UNIQUE,
         unique_payment_code VARCHAR(20) UNIQUE NOT NULL, current_balance DECIMAL(15, 2) DEFAULT 0.00,
@@ -114,13 +105,11 @@ const bootSystem = async () => {
   if (!connected) {
     SYSTEM_IDENTITY.status = "DEGRADED";
     SYSTEM_IDENTITY.db_health = "FAILED";
-    console.error("[FATAL] All DB handshake attempts failed. Verify credentials in public_html/.builds/config/.env");
+    console.error("[FATAL] All DB handshake attempts failed. Check nested .env file.");
   }
 };
 
 bootSystem();
-
-// --- API ROUTES ---
 
 app.get('/api/system/health', (req, res) => res.json(SYSTEM_IDENTITY));
 
@@ -191,4 +180,4 @@ app.use(express.static(path.join(__dirname, 'dist')));
 app.get('*', (req: Request, res: Response) => res.sendFile(path.join(__dirname, 'dist', 'index.html')));
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`[CORE] Scaled Platform Active on 139.59.10.70:${PORT}`));
+app.listen(PORT, () => console.log(`[CORE] Scaled Platform Active on Port ${PORT}`));
