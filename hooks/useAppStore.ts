@@ -41,25 +41,30 @@ export const useAppStore = () => {
 
   const syncLedger = useCallback(async () => {
     if (!user) return;
-    addLog("Initializing secure handshake with Cloud Node...");
+    addLog("Requesting remote server telemetry...");
     try {
-      const health = await axios.get('/api/system/health');
-      if (health.data.db_health !== 'CONNECTED') {
-         throw new Error(`DB_FAIL: ${health.data.last_error || 'Handshake failed'}`);
+      const healthRes = await axios.get('/api/system/health');
+      const health = healthRes.data;
+
+      // Dump all remote debug logs into the terminal
+      if (health.debug_logs && health.debug_logs.length > 0) {
+        health.debug_logs.forEach((log: string) => addLog(`REMOTE: ${log}`));
+      }
+
+      if (health.db_health !== 'CONNECTED') {
+         throw new Error(`DB_HANDSHAKE_FAILED: ${health.last_error || 'No reason provided'}`);
       }
 
       const res = await axios.get('/api/customers');
       if (res.data && Array.isArray(res.data)) {
         setCustomers(res.data.length > 0 ? res.data : INITIAL_CUSTOMERS);
         setDbStatus('CONNECTED');
-        addLog(`SYNC_OK: Node ${health.data.node_id} verified.`);
+        addLog(`NODE_STABLE: Running on version ${health.version}`);
       }
     } catch (e: any) {
       const detail = e.response?.data?.details || e.message;
       addLog(`CRITICAL: ${detail}`);
       setDbStatus('OFFLINE');
-      // We keep showing initial mock data so the UI doesn't look empty, 
-      // but the log clearly shows the error.
     }
   }, [user, addLog]);
 
