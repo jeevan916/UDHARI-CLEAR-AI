@@ -1,0 +1,8 @@
+{
+  "name": " Arrears flow v1.2",
+  "description": "Enterprise-grade debt recovery CRM powered by Gemini AI. Features automated risk profiling, smart message drafting, and omnichannel ledgers.",
+  "requestFramePermissions": [
+    "geolocation",
+    "camera"
+  ]
+}
