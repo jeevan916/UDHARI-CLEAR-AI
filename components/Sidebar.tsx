@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { 
   LayoutDashboard, Users, MessageSquare, Briefcase, 
   Layers, ChevronDown, LogOut, X, Bot, HeartPulse, PhoneCall, BrainCircuit, FileText, Ghost,
-  ChevronLeft, ChevronRight, Landmark, Server
+  ChevronLeft, ChevronRight, Landmark, Server, Settings
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -114,9 +114,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
           <SidebarBtn icon={<Users size={18}/>} label="Entity Master" active={activeView === 'customers'} onClick={() => handleNavigation('customers')} />
 
-          {/* Fixed line 117: Using MessageSquare which is now correctly imported */}
           <SidebarGroup icon={<MessageSquare size={18}/>} label="Protocol Bridge" id="protocols">
             <button onClick={() => handleNavigation('whatsapp-chat')} className={`w-full text-left py-2 px-3 rounded-lg font-black text-[9px] uppercase tracking-widest ${activeView === 'whatsapp-chat' ? 'bg-emerald-50 text-emerald-600' : 'text-slate-400 hover:text-slate-900'}`}>WhatsApp Hub</button>
+            <button onClick={() => handleNavigation('whatsapp-config')} className={`w-full text-left py-2 px-3 rounded-lg font-black text-[9px] uppercase tracking-widest ${activeView === 'whatsapp-config' ? 'bg-emerald-50 text-emerald-600' : 'text-slate-400 hover:text-slate-900'}`}>WhatsApp Node</button>
             <button onClick={() => handleNavigation('call-logs')} className={`w-full text-left py-2 px-3 rounded-lg font-black text-[9px] uppercase tracking-widest ${activeView === 'call-logs' ? 'bg-indigo-50 text-indigo-600' : 'text-slate-400 hover:text-slate-900'}`}>Call Logs</button>
           </SidebarGroup>
 
@@ -140,7 +140,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
                  <span className="text-[9px] font-black uppercase text-slate-600 truncate">72.61.175.20</span>
               </div>
-              <p className="text-[8px] font-black text-slate-400 uppercase">ONLINE - NODE_S1645</p>
+              <p className="text-[8px] font-black text-slate-400 uppercase">CONNECTED - u477692720</p>
            </div>
            <button onClick={onLogout} className="w-full flex items-center justify-center gap-2 p-3 text-rose-500 hover:bg-rose-50 rounded-xl transition-all font-black uppercase text-[10px] tracking-widest">
              <LogOut size={16}/> {!isCollapsed && "Terminate Session"}

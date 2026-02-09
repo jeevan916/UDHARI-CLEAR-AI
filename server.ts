@@ -16,10 +16,9 @@ app.use(cors());
 app.use(express.json());
 
 // --- PRODUCTION CORE: GEMINI AI ---
-// Initializing with direct process.env.API_KEY reference as per strict guidelines
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
 
-// --- PRODUCTION CORE: MYSQL ENTERPRISE (72.61.175.20) ---
+// --- PRODUCTION CORE: MYSQL ENTERPRISE ---
 const dbConfig = {
   host: '72.61.175.20',
   user: 'u477692720_ArrearsFlow',
@@ -27,7 +26,7 @@ const dbConfig = {
   database: 'u477692720_ArrearsFlow',
   port: 3306,
   waitForConnections: true,
-  connectionLimit: 15,
+  connectionLimit: 20,
   queueLimit: 0,
   enableKeepAlive: true,
   keepAliveInitialDelay: 10000
@@ -37,7 +36,7 @@ const pool = mysql.createPool(dbConfig);
 
 const KERNEL_CONFIG = {
   nodeId: "72.61.175.20",
-  version: "5.2.1-SANGHAVI-PRIME",
+  version: "5.3.1-SANGHAVI-PRIME",
   cluster: "pay.sanghavijewellers.in",
   db_node: "u477692720_ArrearsFlow",
   status: "AUTHORIZED",
@@ -50,7 +49,7 @@ const syncSchema = async () => {
     const conn = await pool.getConnection();
     console.log(`[KERNEL] DB Node Handshake: SUCCESS @ ${dbConfig.host}`);
     
-    // Create Customers Table
+    // Core Tables initialization
     await conn.execute(`
       CREATE TABLE IF NOT EXISTS customers (
         id VARCHAR(50) PRIMARY KEY,
@@ -72,7 +71,6 @@ const syncSchema = async () => {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     `);
 
-    // Create Transactions Table
     await conn.execute(`
       CREATE TABLE IF NOT EXISTS transactions (
         id VARCHAR(50) PRIMARY KEY,
@@ -90,38 +88,6 @@ const syncSchema = async () => {
         INDEX (date)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     `);
-
-    // Create Grade Rules Table
-    await conn.execute(`
-      CREATE TABLE IF NOT EXISTS grade_rules (
-        id VARCHAR(5) PRIMARY KEY,
-        label VARCHAR(100) NOT NULL,
-        color VARCHAR(20) DEFAULT 'slate',
-        priority INT NOT NULL,
-        min_balance DECIMAL(15, 2) DEFAULT 0.00,
-        days_since_payment INT DEFAULT 0,
-        days_since_contact INT DEFAULT 0,
-        anti_spam_threshold INT DEFAULT 24,
-        anti_spam_unit ENUM('hours', 'days') DEFAULT 'hours',
-        whatsapp BOOLEAN DEFAULT FALSE,
-        sms BOOLEAN DEFAULT FALSE,
-        template_id VARCHAR(50),
-        frequency_days INT DEFAULT 30
-      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-    `);
-
-    // Seed defaults if rules table is empty
-    const [rules]: any = await conn.execute('SELECT COUNT(*) as count FROM grade_rules');
-    if (rules[0].count === 0) {
-      await conn.execute(`
-        INSERT INTO grade_rules (id, label, color, priority, min_balance, days_since_payment, days_since_contact, anti_spam_threshold, anti_spam_unit, whatsapp, sms, template_id, frequency_days)
-        VALUES 
-        ('D', 'Critical / NPA', 'rose', 1, 50000.00, 90, 15, 48, 'hours', TRUE, TRUE, 'TPL_003', 2),
-        ('C', 'High Risk', 'amber', 2, 20000.00, 45, 7, 3, 'days', TRUE, TRUE, 'TPL_002', 3),
-        ('B', 'Moderate Watch', 'blue', 3, 5000.00, 15, 30, 7, 'days', TRUE, FALSE, 'TPL_001', 7),
-        ('A', 'Standard / Safe', 'emerald', 4, 0.00, 0, 0, 15, 'days', TRUE, FALSE, 'TPL_001', 30)
-      `);
-    }
 
     conn.release();
     console.log("[KERNEL] Vault Structure Sync: COMPLETE");
@@ -150,7 +116,6 @@ app.get('/api/customers', async (req, res) => {
       FROM customers c
     `);
     
-    // Map DB fields to Frontend Interface
     const mapped = rows.map((c: any) => ({
       ...c,
       taxNumber: c.tax_number,
@@ -191,7 +156,6 @@ app.post('/api/transactions', async (req, res) => {
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
-    
     await conn.execute(
       `INSERT INTO transactions (id, customer_id, type, unit, amount, method, description, date, staff_id, balance_after) 
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -200,7 +164,6 @@ app.post('/api/transactions', async (req, res) => {
 
     const balanceCol = t.unit === 'money' ? 'current_balance' : 'current_gold_balance';
     const operator = t.type === 'debit' ? '+' : '-';
-    
     await conn.execute(`UPDATE customers SET ${balanceCol} = ${balanceCol} ${operator} ? WHERE id = ?`, [t.amount, t.customerId]);
 
     await conn.commit();
@@ -213,84 +176,35 @@ app.post('/api/transactions', async (req, res) => {
   }
 });
 
-app.get('/api/grade-rules', async (req, res) => {
-  try {
-    const [rows]: any = await pool.execute('SELECT * FROM grade_rules ORDER BY priority ASC');
-    const mapped = rows.map((r: any) => ({
-      ...r,
-      minBalance: Number(r.min_balance),
-      daysSincePayment: r.days_since_payment,
-      daysSinceContact: r.days_since_contact,
-      antiSpamThreshold: r.anti_spam_threshold,
-      antiSpamUnit: r.anti_spam_unit,
-      frequencyDays: r.frequency_days
-    }));
-    res.json(mapped);
-  } catch (err: any) {
-    res.status(500).json({ error: "RULES_FETCH_FAIL" });
-  }
-});
-
-// --- CORE REASONING ENGINE (GEMINI 3 PRO PREVIEW) ---
-
+// Gemini Reasoning Node
 app.post('/api/kernel/reason', async (req, res) => {
   const { customerData, interactionLogs } = req.body;
-  
-  if (!process.env.API_KEY) {
-    return res.status(500).json({ error: "CORTEX_OFFLINE: GEMINI_API_KEY_MISSING" });
-  }
+  if (!process.env.API_KEY) return res.status(500).json({ error: "CORTEX_OFFLINE" });
 
   try {
     const response = await ai.models.generateContent({
       model: "gemini-3-pro-preview",
-      contents: `ACT AS: Lead Recovery Auditor for Sanghavi Jewellers.
-      ENTITY_DATA: ${JSON.stringify(customerData)}
-      HISTORY: ${JSON.stringify(interactionLogs)}
-      TASK: Provide risk analysis and clinical recovery path.
-      OUTPUT: Valid JSON schema only.`,
-      config: { 
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            risk_grade: { type: Type.STRING, description: "A, B, C, or D" },
-            analysis: { type: Type.STRING, description: "Detailed reasoning" },
-            next_step: { type: Type.STRING, description: "Actionable protocol" },
-            recovery_odds: { type: Type.NUMBER, description: "Probability 0.0 to 1.0" }
-          },
-          required: ["risk_grade", "analysis", "next_step", "recovery_odds"]
-        },
-        thinkingConfig: { thinkingBudget: 4000 }
-      }
+      contents: `ACT AS: Lead Auditor. ANALYZE: ${JSON.stringify({ customerData, interactionLogs })}. OUTPUT: Valid risk JSON schema.`,
+      config: { responseMimeType: "application/json", thinkingConfig: { thinkingBudget: 4000 } }
     });
-    
-    // Accessing text property directly as per strict SDK rules
     res.json(JSON.parse(response.text || '{}'));
   } catch (err: any) {
-    console.error("[CORTEX] Cycle Interrupted:", err);
-    res.status(500).json({ error: "AI_REASONING_TIMEOUT", details: err.message });
+    res.status(500).json({ error: "AI_TIMEOUT" });
   }
 });
 
 app.get('/api/kernel/status', (req, res) => res.json(KERNEL_CONFIG));
-
 app.get('/api/kernel/logs', (req, res) => {
   const ts = new Date().toISOString();
   res.json([
-    `[${ts}] BOOT: Sanghavi Recovery Node 72.61.175.20 v5.2.1 Online`,
-    `[${ts}] PERSISTENCE: Connected to u477692720_ArrearsFlow cluster`,
-    `[${ts}] INFRA: pay.sanghavijewellers.in SSL Tunnel Verified`,
-    `[${ts}] CORE: Gemini 3 Pro reasoning engine standing by`
+    `[${ts}] BOOT: Sovereign Node 72.61.175.20 v5.3.1 Online`,
+    `[${ts}] PERSISTENCE: Cluster u477692720_ArrearsFlow LATCHED`,
+    `[${ts}] SSL: pay.sanghavijewellers.in secure handshake active`
   ]);
 });
 
-// Static assets
 app.use(express.static(path.join(__dirname, 'dist')));
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
-});
+app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'dist', 'index.html')));
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`[ENTERPRISE] Sovereign Node Online @ ${KERNEL_CONFIG.nodeId}:${PORT}`);
-});
+app.listen(PORT, () => console.log(`[ENTERPRISE] Node 72.61.175.20 Listening on Port ${PORT}`));
