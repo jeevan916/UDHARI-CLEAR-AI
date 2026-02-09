@@ -20,7 +20,9 @@ const SYSTEM_IDENTITY = {
   last_error: null as any,
   debug_logs: [] as string[],
   database_structure: [] as any[],
-  env_check: {} as Record<string, string>
+  env_check: {} as Record<string, string>,
+  db_routes_tested: [] as string[],
+  missing_config: [] as string[]
 };
 
 const logDebug = (msg: string) => {
@@ -77,18 +79,27 @@ let pool: mysql.Pool;
 const bootSystem = async () => {
   logDebug("Initializing Recovery Engine...");
   
-  if (!process.env.DB_USER || !process.env.DB_HOST) {
+  const missingConfig = ['DB_USER', 'DB_NAME'].filter((key) => !process.env[key]);
+  SYSTEM_IDENTITY.missing_config = missingConfig;
+  if (missingConfig.length > 0) {
     logDebug("CRITICAL: Database configuration is incomplete. Check .env variables.");
+    SYSTEM_IDENTITY.last_error = {
+      code: 'MISSING_CONFIG',
+      message: `Missing required config: ${missingConfig.join(', ')}`,
+      host: process.env.DB_HOST || '127.0.0.1'
+    };
     SYSTEM_IDENTITY.status = "HALTED";
     return;
   }
 
-  const hosts = [process.env.DB_HOST, '127.0.0.1', 'localhost'];
+  const primaryHost = process.env.DB_HOST || '127.0.0.1';
+  const hosts = Array.from(new Set([primaryHost, '127.0.0.1', 'localhost']));
   let connected = false;
 
   for (const host of hosts) {
     if (connected) break;
     try {
+      SYSTEM_IDENTITY.db_routes_tested.push(host);
       logDebug(`Testing Route: ${host}...`);
       const tempPool = mysql.createPool(getDbConfig(host));
       
