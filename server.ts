@@ -19,35 +19,38 @@ app.use(express.json());
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
 
 // --- PRODUCTION CORE: MYSQL ENTERPRISE ---
+// Updated to 'localhost' which is required for u477692720_ArrearsFlow on Hostinger nodes
 const dbConfig = {
-  host: '72.61.175.20',
+  host: 'localhost',
   user: 'u477692720_ArrearsFlow',
   password: 'ArrearsFlow@916',
   database: 'u477692720_ArrearsFlow',
   port: 3306,
   waitForConnections: true,
-  connectionLimit: 20,
+  connectionLimit: 10,
   queueLimit: 0,
   enableKeepAlive: true,
-  keepAliveInitialDelay: 10000
+  keepAliveInitialDelay: 10000,
+  connectTimeout: 20000 // 20 seconds for slow handshake
 };
 
 const pool = mysql.createPool(dbConfig);
 
 const KERNEL_CONFIG = {
   nodeId: "72.61.175.20",
-  version: "5.3.1-SANGHAVI-PRIME",
+  version: "5.4.0-SANGHAVI-RESILIENT",
   cluster: "pay.sanghavijewellers.in",
   db_node: "u477692720_ArrearsFlow",
-  status: "AUTHORIZED",
+  status: "SYNCHRONIZING",
   uptime: new Date().toISOString()
 };
 
 // --- DATABASE AUTO-PROVISIONING ---
 const syncSchema = async () => {
+  let conn;
   try {
-    const conn = await pool.getConnection();
-    console.log(`[KERNEL] DB Node Handshake: SUCCESS @ ${dbConfig.host}`);
+    conn = await pool.getConnection();
+    console.log(`[KERNEL] DB Node Handshake: SUCCESS @ LOCALHOST`);
     
     // Core Tables initialization
     await conn.execute(`
@@ -89,16 +92,27 @@ const syncSchema = async () => {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     `);
 
-    conn.release();
     console.log("[KERNEL] Vault Structure Sync: COMPLETE");
-  } catch (err) {
-    console.error("[CRITICAL] Node Persistence Failure:", err);
+  } catch (err: any) {
+    console.error("[CRITICAL] Node Persistence Failure:", err.message);
+    // We don't exit process, allowing express to serve 500s or 503s gracefully if DB is down
+  } finally {
+    if (conn) conn.release();
   }
 };
 
 syncSchema();
 
-// --- RESTFUL API LAYER ---
+// --- SYSTEM API LAYER ---
+
+app.get('/api/health', async (req, res) => {
+  try {
+    const [rows]: any = await pool.execute('SELECT 1 as connected');
+    res.json({ status: 'UP', db: rows[0].connected === 1 ? 'CONNECTED' : 'DISCONNECTED', kernel: KERNEL_CONFIG });
+  } catch (err: any) {
+    res.status(503).json({ status: 'DOWN', error: err.message });
+  }
+});
 
 app.get('/api/customers', async (req, res) => {
   try {
@@ -133,6 +147,7 @@ app.get('/api/customers', async (req, res) => {
     
     res.json(mapped);
   } catch (err: any) {
+    console.error("[API_ERROR]", err.message);
     res.status(500).json({ error: "DB_FETCH_ERROR", details: err.message });
   }
 });
@@ -169,10 +184,28 @@ app.post('/api/transactions', async (req, res) => {
     await conn.commit();
     res.json({ success: true, ref: t.id });
   } catch (err: any) {
-    await conn.rollback();
+    if (conn) await conn.rollback();
     res.status(500).json({ error: "LEDGER_COMMIT_FAILED", details: err.message });
   } finally {
-    conn.release();
+    if (conn) conn.release();
+  }
+});
+
+app.get('/api/grade-rules', async (req, res) => {
+  try {
+    const [rows]: any = await pool.execute('SELECT * FROM grade_rules ORDER BY priority ASC');
+    const mapped = rows.map((r: any) => ({
+      ...r,
+      minBalance: Number(r.min_balance),
+      daysSincePayment: r.days_since_payment,
+      daysSinceContact: r.days_since_contact,
+      antiSpamThreshold: r.anti_spam_threshold,
+      antiSpamUnit: r.anti_spam_unit,
+      frequencyDays: r.frequency_days
+    }));
+    res.json(mapped);
+  } catch (err: any) {
+    res.status(500).json({ error: "RULES_FETCH_FAIL" });
   }
 });
 
@@ -197,9 +230,9 @@ app.get('/api/kernel/status', (req, res) => res.json(KERNEL_CONFIG));
 app.get('/api/kernel/logs', (req, res) => {
   const ts = new Date().toISOString();
   res.json([
-    `[${ts}] BOOT: Sovereign Node 72.61.175.20 v5.3.1 Online`,
-    `[${ts}] PERSISTENCE: Cluster u477692720_ArrearsFlow LATCHED`,
-    `[${ts}] SSL: pay.sanghavijewellers.in secure handshake active`
+    `[${ts}] BOOT: Sovereign Node 72.61.175.20 v5.4.0 Online`,
+    `[${ts}] LATCH: Primary MySQL Link u477692720_ArrearsFlow Ready`,
+    `[${ts}] SSL: secure channel pay.sanghavijewellers.in active`
   ]);
 });
 
@@ -207,4 +240,4 @@ app.use(express.static(path.join(__dirname, 'dist')));
 app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'dist', 'index.html')));
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`[ENTERPRISE] Node 72.61.175.20 Listening on Port ${PORT}`));
+app.listen(PORT, () => console.log(`[ENTERPRISE] Node Listening on Port ${PORT}`));

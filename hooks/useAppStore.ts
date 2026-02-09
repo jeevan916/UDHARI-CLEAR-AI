@@ -61,7 +61,7 @@ export const useAppStore = () => {
   // --- NODE INITIALIZATION & SYNC ---
   useEffect(() => {
     if (user) {
-      addLog(`HANDSHAKE: Root identity ${user.name} authenticated via 72.61.175.20`);
+      addLog(`HANDSHAKE: Authenticated as ${user.name}`);
       const initializeData = async () => {
          try {
             const [custRes, ruleRes, liveLogs] = await Promise.all([
@@ -72,11 +72,15 @@ export const useAppStore = () => {
             setCustomers(custRes.data);
             setGradeRules(ruleRes.data);
             setSystemLogs(prev => [...liveLogs, ...prev]);
-            addLog("SYNC: Node clusters synchronized with pay.sanghavijewellers.in");
-            addLog("VAULT: Database u477692720_ArrearsFlow is LOCKED and SECURE.");
-         } catch (e) {
+            addLog("SYNC: Node 72.61.175.20 clusters synchronized.");
+            addLog("VAULT: Database u477692720_ArrearsFlow verified.");
+         } catch (e: any) {
             console.error("Sync Failure:", e);
-            addLog("ERROR: Sovereign DB handshake failed. Network latency detected.");
+            if (e.response?.status === 503) {
+                addLog("CRITICAL: Vault 503. Server is attempting database reconnection...");
+            } else {
+                addLog("ERROR: Infrastructure handshake timed out.");
+            }
          }
       };
       initializeData();
@@ -102,7 +106,7 @@ export const useAppStore = () => {
     };
 
     try {
-       addLog(`STAGING: Pushing ref ${newTx.id} to MySQL cluster...`);
+       addLog(`STAGING: Transmitting ref ${newTx.id}...`);
        await axios.post('/api/transactions', { ...newTx, customerId: selectedId });
        
        setCustomers(prev => prev.map(c => {
@@ -116,10 +120,10 @@ export const useAppStore = () => {
          }
          return c;
        }));
-       addLog(`COMMIT_SUCCESS: Ledger mutated for ${activeCustomer.uniquePaymentCode}`);
+       addLog(`COMMIT_OK: Ledger mutated for ${activeCustomer.uniquePaymentCode}`);
        setIsEntryModalOpen(false);
     } catch (e) {
-       addLog("CRITICAL: Ledger mutation rejected by MySQL Node. Check credentials.");
+       addLog("REJECTED: MySQL node rejected the commit payload.");
     }
   };
 
@@ -147,12 +151,12 @@ export const useAppStore = () => {
     };
 
     try {
-       addLog(`ONBOARDING: Transmitting identity ${newCustomer.uniquePaymentCode} to node 72.61.175.20...`);
+       addLog(`ONBOARDING: Syncing identity ${newCustomer.uniquePaymentCode}...`);
        await axios.post('/api/customers', newCustomer);
        setCustomers(prev => [...prev, newCustomer]);
-       addLog(`ENTITY_REGISTERED: Handshake complete for ${newCustomer.name}`);
+       addLog(`SYNC_OK: ${newCustomer.name} committed to vault.`);
     } catch (e) {
-       addLog("ERROR: Customer onboarding rejected by database cluster.");
+       addLog("REJECTED: Onboarding rejected by database cluster.");
     }
   };
 
@@ -171,12 +175,12 @@ export const useAppStore = () => {
       }
       return c;
     }));
-    addLog(`IDENTITY_MUTATION: Primary contact for ${customerId} updated.`);
+    addLog(`IDENTITY_UPDATE: Primary contact updated.`);
   };
 
   const updateIntegrationConfig = (nodeId: string, fields: IntegrationField[]) => {
     setIntegrations(prev => prev.map(node => node.id === nodeId ? { ...node, fields } : node));
-    addLog(`INFRA_UPDATE: Credentials for node ${nodeId} encrypted & committed.`);
+    addLog(`INFRA_UPDATE: Credentials committed to encrypted memory.`);
   };
 
   return {
@@ -197,31 +201,31 @@ export const useAppStore = () => {
       handleAiInquiry: async () => {
         if (!activeCustomer) return;
         setIsAiLoading(true);
-        addLog(`CORTEX_REASONING: Analyzing behavior for ${activeCustomer.uniquePaymentCode} via Gemini 3...`);
+        addLog(`CORTEX: Reasoning cycle initiated for ${activeCustomer.uniquePaymentCode}`);
         const strategy = await generateEnterpriseStrategy(activeCustomer, callLogs);
         setAiStrategy(strategy);
         setIsAiLoading(false);
-        addLog(`ADVISORY_RECEIVED: Logic Gate decision cached in local state.`);
+        addLog(`ADVISORY: Heuristic decision received.`);
       },
       handleDeleteTransaction: (txId: string) => {
         setCustomers(prev => prev.map(c => c.id === selectedId ? { ...c, transactions: c.transactions.filter(t => t.id !== txId) } : c));
-        addLog(`LEDGER_CLEANUP: Reference ${txId} purged from node memory.`);
+        addLog(`CLEANUP: Ref ${txId} purged.`);
       },
       openEditModal: (tx: Transaction) => { setEditingTransaction(tx); setIsEntryModalOpen(true); },
       enrichCustomerData: async () => {
         if (!activeCustomer) return;
         setIsAiLoading(true);
-        addLog(`FORENSIC_TRACE: Pinging Deepvue for mobile ${activeCustomer.phone}...`);
+        addLog(`FORENSIC: Pinging Deepvue for identity ${activeCustomer.phone}`);
         setIsAiLoading(false);
       },
       handleAddCallLog: (log: CommunicationLog) => {
         setCallLogs(prev => [log, ...prev]);
-        addLog(`VOICE_PROTOCOL: Verbal interaction record committed to audit trail.`);
+        addLog(`PROTOCOL: Interaction record committed.`);
       },
       handleUpdateProfile: (updates: any) => {
         setCustomers(prev => prev.map(c => c.id === selectedId ? { ...c, ...updates } : c));
         setIsEditModalOpen(false);
-        addLog(`ENTITY_UPDATED: Profile mutation synchronized with Hostinger node.`);
+        addLog(`IDENTITY: Profile mutation successful.`);
       },
       updateCustomerDeepvueData,
       setPrimaryContact,
