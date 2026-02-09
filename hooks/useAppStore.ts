@@ -16,6 +16,7 @@ export const useAppStore = () => {
   const [customers, setCustomers] = useState<Customer[]>(INITIAL_CUSTOMERS);
   const [systemLogs, setSystemLogs] = useState<string[]>([]);
   const [dbStatus, setDbStatus] = useState<'CONNECTED' | 'OFFLINE'>('OFFLINE');
+  const [dbStructure, setDbStructure] = useState<any[]>([]);
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
@@ -45,6 +46,11 @@ export const useAppStore = () => {
     try {
       const healthRes = await axios.get('/api/system/health');
       const health = healthRes.data;
+
+      // Update Database Structure state for the Vault
+      if (health.database_structure) {
+        setDbStructure(health.database_structure);
+      }
 
       // Dump all remote debug logs into the terminal
       if (health.debug_logs && health.debug_logs.length > 0) {
@@ -184,7 +190,7 @@ export const useAppStore = () => {
 
   return {
     state: { 
-      user, activeView, customers, systemLogs, dbStatus, isAiLoading, isAdmin, 
+      user, activeView, customers, systemLogs, dbStatus, dbStructure, isAiLoading, isAdmin, 
       activeCustomer, gradeRules, expandedMenus, isMobileMenuOpen, searchTerm, 
       filterGrade, callLogs, whatsappLogs, templates, integrations, aiStrategy, 
       behavior, filteredCustomers, isEntryModalOpen, editingTransaction, entryDefaults, isEditModalOpen

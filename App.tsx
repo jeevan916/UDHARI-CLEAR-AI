@@ -1,4 +1,3 @@
-
 import React, { Suspense, lazy } from 'react';
 import { useAppStore } from './hooks/useAppStore';
 
@@ -26,6 +25,7 @@ const AuditLogView = lazy(() => import('./views/AuditLogView').then(module => ({
 const CallLogsView = lazy(() => import('./views/CallLogsView').then(module => ({ default: module.CallLogsView })));
 const BrainView = lazy(() => import('./views/BrainView').then(module => ({ default: module.BrainView })));
 const CortexArchitectView = lazy(() => import('./views/CortexArchitectView').then(module => ({ default: module.CortexArchitectView })));
+const SystemVaultView = lazy(() => import('./views/SystemVaultView').then(module => ({ default: module.SystemVaultView })));
 
 const LoadingSpinner = () => (
   <div className="flex items-center justify-center h-full w-full p-20 opacity-50">
@@ -161,6 +161,14 @@ const App: React.FC = () => {
                 integrations={state.integrations}
                 onUpdateConfig={actions.updateIntegrationConfig}
                 isAdmin={state.isAdmin}
+              />
+            )}
+
+            {state.activeView === 'system-vault' && (
+              <SystemVaultView 
+                dbStatus={state.dbStatus}
+                dbStructure={state.dbStructure}
+                systemLogs={state.systemLogs}
               />
             )}
 

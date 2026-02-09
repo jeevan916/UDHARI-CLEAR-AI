@@ -1,4 +1,3 @@
-
 export enum CustomerGrade {
   A = 'A', B = 'B', C = 'C', D = 'D'
 }
@@ -66,7 +65,6 @@ export interface VerifiedDocument {
   rawResponse?: any;
 }
 
-// Added Deepvue related types
 export interface DiscoveredContact {
   value: string;
   type: string;
@@ -154,7 +152,6 @@ export interface DeepvueInsight {
   gstFilingStatus: string;
 }
 
-// Added Profile types
 export interface ProfileContact {
   id: string;
   type: string;
@@ -243,7 +240,6 @@ export interface Template {
   msg91Route?: string;
 }
 
-// Added Integration types
 export interface IntegrationField {
   key: string;
   label: string;
@@ -282,4 +278,4 @@ export interface AiStrategy {
   next_step?: string;
 }
 
-export type View = 'dashboard' | 'customers' | 'transactions' | 'communication' | 'grades' | 'view-customer' | 'integrations' | 'brain' | 'cortex-architect' | 'whatsapp-config' | 'whatsapp-chat' | 'whatsapp-logs' | 'payment-logs' | 'template-architect' | 'call-logs' | 'audit-log';
+export type View = 'dashboard' | 'customers' | 'transactions' | 'communication' | 'grades' | 'view-customer' | 'integrations' | 'brain' | 'cortex-architect' | 'whatsapp-config' | 'whatsapp-chat' | 'whatsapp-logs' | 'payment-logs' | 'template-architect' | 'call-logs' | 'audit-log' | 'system-vault';

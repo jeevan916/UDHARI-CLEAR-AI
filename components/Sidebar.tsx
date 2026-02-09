@@ -1,9 +1,8 @@
-
 import React, { useState } from 'react';
 import { 
   LayoutDashboard, Users, MessageSquare, Briefcase, 
   Layers, ChevronDown, LogOut, X, Bot, PhoneCall, BrainCircuit, Ghost,
-  ChevronLeft, ChevronRight, Landmark, Server
+  ChevronLeft, ChevronRight, Landmark, Server, ShieldCheck, Database
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -125,18 +124,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <button onClick={() => handleNavigation('template-architect')} className={`w-full text-left py-2 px-3 rounded-lg font-black text-[9px] uppercase tracking-widest ${activeView === 'template-architect' ? 'bg-blue-500/10 text-blue-400' : 'text-slate-500 hover:text-white'}`}>Artifacts</button>
           </SidebarGroup>
           
-          {isAdmin && (
-             <div className="pt-2 mt-2 border-t border-white/5">
+          <div className="pt-2 mt-2 border-t border-white/5">
+             <SidebarBtn icon={<ShieldCheck size={18} className="text-blue-400"/>} label="System Vault" active={activeView === 'system-vault'} onClick={() => handleNavigation('system-vault')} />
+             {isAdmin && (
                 <SidebarBtn icon={<Ghost size={18} className="text-amber-500"/>} label="Authority Mode" active={activeView === 'cortex-architect'} onClick={() => handleNavigation('cortex-architect')} />
-             </div>
-          )}
+             )}
+          </div>
         </nav>
 
         <div className="p-3 border-t border-white/5 bg-[#0d1117] sticky bottom-0 flex flex-col gap-2">
            <button onClick={toggleCollapse} className="hidden md:flex items-center justify-center w-full py-2 text-slate-600 hover:text-slate-400">{isCollapsed ? <ChevronRight size={18}/> : <ChevronLeft size={18}/>}</button>
            <div className={`rounded-xl border border-white/5 bg-white/5 p-3 ${isCollapsed ? 'hidden' : ''}`}>
               <div className="flex items-center gap-2 mb-1">
-                 <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
+                 <div className={`w-1.5 h-1.5 rounded-full ${activeView === 'system-vault' ? 'bg-emerald-500 animate-pulse' : 'bg-slate-500'}`}></div>
                  <span className="text-[9px] font-black uppercase text-slate-400 truncate">PRODUCTION_CORE</span>
               </div>
               <p className="text-[8px] font-black text-slate-600 uppercase">LEDGER: SECURE_SYNC</p>
