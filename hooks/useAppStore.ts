@@ -41,24 +41,25 @@ export const useAppStore = () => {
 
   const syncLedger = useCallback(async () => {
     if (!user) return;
-    addLog("Initializing secure handshake with Production Node...");
+    addLog("Initializing secure handshake with Cloud Node...");
     try {
       const health = await axios.get('/api/system/health');
       if (health.data.db_health !== 'CONNECTED') {
-         throw new Error(`DB_LINK_FAILED: ${health.data.last_error || 'Unknown Reason'}`);
+         throw new Error(`DB_FAIL: ${health.data.last_error || 'Handshake failed'}`);
       }
 
       const res = await axios.get('/api/customers');
       if (res.data && Array.isArray(res.data)) {
         setCustomers(res.data.length > 0 ? res.data : INITIAL_CUSTOMERS);
         setDbStatus('CONNECTED');
-        addLog("SYNC_COMPLETE: Production node verified.");
+        addLog(`SYNC_OK: Node ${health.data.node_id} verified.`);
       }
     } catch (e: any) {
       const detail = e.response?.data?.details || e.message;
       addLog(`CRITICAL: ${detail}`);
       setDbStatus('OFFLINE');
-      setCustomers(INITIAL_CUSTOMERS);
+      // We keep showing initial mock data so the UI doesn't look empty, 
+      // but the log clearly shows the error.
     }
   }, [user, addLog]);
 
