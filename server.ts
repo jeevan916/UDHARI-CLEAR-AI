@@ -13,15 +13,14 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // --- 1. GLOBAL SYSTEM IDENTITY & LOG CAPTURE ---
-// This object acts as a "Black Box" flight recorder for the server.
 const SYSTEM_IDENTITY = {
   node_id: process.env.NODE_ID || os.hostname(),
   environment: process.env.NODE_ENV || "production",
-  version: "7.6.0-ANTI-CRASH",
+  version: "7.7.0-ENTERPRISE-AUTH",
   status: "BOOTING",
   db_health: "DISCONNECTED",
   last_error: null as any,
-  debug_logs: [] as string[], // Stores last 200 logs
+  debug_logs: [] as string[],
   database_structure: [] as any[],
   env_check: {} as Record<string, string>,
   network_trace: {
@@ -34,7 +33,6 @@ const SYSTEM_IDENTITY = {
 };
 
 // --- 2. INTERCEPT STDOUT/STDERR ---
-// This ensures that even library errors (like mysql2 connection errors) are captured for the UI.
 const originalConsoleLog = console.log;
 const originalConsoleError = console.error;
 
@@ -44,11 +42,9 @@ const pushLog = (type: 'INFO' | 'ERR', ...args: any[]) => {
     const msg = args.map(a => (typeof a === 'object' ? JSON.stringify(a) : String(a))).join(' ');
     const formatted = `[${timestamp}] [${type}] ${msg}`;
     
-    SYSTEM_IDENTITY.debug_logs.unshift(formatted); // Add to top
-    if (SYSTEM_IDENTITY.debug_logs.length > 500) SYSTEM_IDENTITY.debug_logs.pop(); // Keep last 500
-  } catch (e) {
-    // Fallback if logging fails
-  }
+    SYSTEM_IDENTITY.debug_logs.unshift(formatted); 
+    if (SYSTEM_IDENTITY.debug_logs.length > 500) SYSTEM_IDENTITY.debug_logs.pop(); 
+  } catch (e) { }
 };
 
 console.log = (...args) => {
@@ -62,7 +58,6 @@ console.error = (...args) => {
 };
 
 // --- 3. ANTI-CRASH HANDLERS ---
-// Prevent Node from exiting on unhandled errors, so the dashboard remains accessible to show the error.
 (process as any).on('uncaughtException', (err: any) => {
   console.error('CRITICAL PROCESS ERROR (Uncaught):', err);
   SYSTEM_IDENTITY.last_error = { type: 'uncaughtException', message: err.message, stack: err.stack };
@@ -331,9 +326,75 @@ bootSystem();
 
 // --- ROUTES ---
 
-// Health Check - ALWAYS returns 200 with logs, even if DB is down.
+// Health Check - ALWAYS returns 200 with logs
 app.get('/api/system/health', (req, res) => {
   res.json(SYSTEM_IDENTITY);
+});
+
+// --- ENTERPRISE AUTHENTICATION ROUTE ---
+app.post('/api/auth/login', async (req: Request, res: Response) => {
+  const { email, password } = req.body;
+  
+  console.log(`[AUTH] Login Attempt: ${email}`);
+
+  // 1. Root Admin Override (Environment Variables)
+  // Use this for initial setup or emergency access if DB is down.
+  const rootEmail = process.env.ADMIN_EMAIL || 'matrixjeevan@gmail.com';
+  const rootPass = process.env.ADMIN_PASSWORD || 'admin123';
+
+  if (email === rootEmail && password === rootPass) {
+     console.log(`[AUTH] Root Admin Authenticated: ${email}`);
+     return res.json({
+        id: 'usr_root_01',
+        name: 'System Root',
+        email: email,
+        role: 'admin',
+        avatarUrl: 'RT'
+     });
+  }
+
+  // 2. Database Authentication
+  if (SYSTEM_IDENTITY.db_health === "CONNECTED") {
+     try {
+        const [rows]: any = await pool.execute(
+           'SELECT * FROM users WHERE email = ? AND role IN ("admin", "staff")', 
+           [email]
+        );
+        
+        if (rows.length > 0) {
+           const user = rows[0];
+           // NOTE: In production, verify hash. For this specific recovery env, we compare plain/simple hash.
+           // Assuming password_hash stores the plain password for this migration phase.
+           if (user.password_hash === password) {
+              console.log(`[AUTH] DB User Authenticated: ${user.name}`);
+              return res.json({
+                 id: user.id,
+                 name: user.name,
+                 email: user.email,
+                 role: user.role,
+                 avatarUrl: user.avatar_url
+              });
+           }
+        }
+     } catch (err: any) {
+        console.error(`[AUTH] DB Check Failed: ${err.message}`);
+     }
+  } else {
+     // 3. Simulation Mode Fallback (Agent)
+     if (email === 'agent@arrearsflow.com' && password === 'agent123') {
+        console.log(`[AUTH] Simulation Agent Authenticated`);
+        return res.json({
+           id: 'usr_sim_agent',
+           name: 'Simulation Agent',
+           email: email,
+           role: 'staff',
+           avatarUrl: 'SA'
+        });
+     }
+  }
+
+  console.log(`[AUTH] Access Denied for: ${email}`);
+  res.status(401).json({ error: "Invalid Credentials" });
 });
 
 app.get('/api/customers', async (req: Request, res: Response) => {
@@ -341,7 +402,6 @@ app.get('/api/customers', async (req: Request, res: Response) => {
      return res.json(MOCK_CUSTOMERS);
   }
   if (SYSTEM_IDENTITY.db_health !== "CONNECTED") {
-    // Return 200 with mock data to keep UI alive, but warn in logs
     console.warn("Serving Mock Data due to DB Failure.");
     return res.json(MOCK_CUSTOMERS); 
   }

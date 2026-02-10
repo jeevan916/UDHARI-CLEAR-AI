@@ -1,7 +1,7 @@
-
 import React, { useState } from 'react';
-import { Lock, Mail, ArrowRight, AlertCircle, KeyRound, Smartphone, Landmark } from 'lucide-react';
+import { Lock, Mail, ArrowRight, AlertCircle, KeyRound, Smartphone, Landmark, Server } from 'lucide-react';
 import { User } from '../types';
+import axios from 'axios';
 
 interface LoginScreenProps {
   onLogin: (user: User) => void;
@@ -13,31 +13,32 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
 
-    setTimeout(() => {
-      if (email.toLowerCase() === 'matrixjeevan@gmail.com' && password === 'admin123') {
-        onLogin({
-          id: 'usr_admin_01',
-          name: 'Jeevan Matrix',
-          email: email,
-          role: 'admin',
-          avatarUrl: 'JM'
-        });
+    try {
+      // Enterprise Auth Call
+      const response = await axios.post('/api/auth/login', { email, password });
+      
+      if (response.data && response.data.id) {
+         onLogin(response.data);
       } else {
-        setError('Invalid credentials. Access denied.');
-        setLoading(false);
+         throw new Error('Invalid response from security node');
       }
-    }, 800);
+    } catch (err: any) {
+      console.error("Login Failed", err);
+      setError(err.response?.data?.error || 'Access Denied. Identity verification failed.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const fillCredentials = (type: 'admin' | 'staff') => {
     if (type === 'admin') {
       setEmail('matrixjeevan@gmail.com');
-      setPassword('admin123');
+      setPassword('admin123'); // Matches server fallback or DB seed
     } else {
       setEmail('agent@arrearsflow.com');
       setPassword('agent123');
@@ -64,9 +65,12 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
           
           <div className="space-y-4">
              <div className="flex items-center gap-4 text-slate-500 text-xs font-black uppercase tracking-widest">
-                <span>System Status: Operational</span>
+                <Server size={14} className="text-emerald-500"/>
+                <span>Hostinger Node: 139.59.10.70</span>
+             </div>
+             <div className="flex items-center gap-4 text-slate-500 text-xs font-black uppercase tracking-widest">
                 <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_8px_#10b981]"></div>
-                <span>Secured Protocol</span>
+                <span>Status: Operational</span>
              </div>
           </div>
         </div>
