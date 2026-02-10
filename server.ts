@@ -112,7 +112,7 @@ keysToVerify.forEach(k => {
 
 // --- APP SETUP ---
 const app = express();
-app.use(cors() as any);
+app.use(cors() as unknown as express.RequestHandler);
 app.use(express.json());
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
@@ -499,7 +499,7 @@ app.post('/api/kernel/reason', async (req: any, res: any) => {
   }
 });
 
-app.use(express.static(path.join(__dirname, 'dist')));
+app.use(express.static(path.join(__dirname, 'dist')) as unknown as express.RequestHandler);
 app.get('*', (req: any, res: any) => res.sendFile(path.join(__dirname, 'dist', 'index.html')));
 
 const PORT = process.env.PORT || 3000;

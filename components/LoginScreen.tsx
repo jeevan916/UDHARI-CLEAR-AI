@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Lock, Mail, ArrowRight, AlertCircle, KeyRound, Smartphone, Landmark, Server, ShieldAlert } from 'lucide-react';
+import { Lock, Mail, ArrowRight, AlertCircle, KeyRound, Smartphone, Landmark, Server, ShieldAlert, PlugZap } from 'lucide-react';
 import { User } from '../types';
 import axios from 'axios';
 
@@ -29,7 +29,15 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
       }
     } catch (err: any) {
       console.error("Login Failed", err);
-      setError(err.response?.data?.error || 'Access Denied. Identity verification failed.');
+      
+      // Smart Error Handling
+      if (err.code === "ERR_NETWORK" || !err.response) {
+         setError("Server Unreachable. Ensure 'npm start' is running.");
+      } else if (err.response?.status === 401) {
+         setError("Invalid Credentials. Try 'Emergency' access.");
+      } else {
+         setError(err.response?.data?.error || 'Access Denied. Identity verification failed.');
+      }
     } finally {
       setLoading(false);
     }
@@ -119,8 +127,9 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
             </div>
 
             {error && (
-              <div className="p-4 bg-rose-500/10 text-rose-500 text-[10px] font-black uppercase tracking-widest rounded-xl border border-rose-500/20 flex items-center gap-3 animate-in shake">
-                <AlertCircle size={16} /> {error}
+              <div className={`p-4 rounded-xl border flex items-center gap-3 animate-in shake ${error.includes('Unreachable') ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' : 'bg-rose-500/10 text-rose-500 border-rose-500/20'}`}>
+                {error.includes('Unreachable') ? <PlugZap size={16}/> : <AlertCircle size={16} />} 
+                <span className="text-[10px] font-black uppercase tracking-widest">{error}</span>
               </div>
             )}
 
