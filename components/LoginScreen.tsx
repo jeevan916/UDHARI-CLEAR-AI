@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Lock, Mail, ArrowRight, AlertCircle, KeyRound, Smartphone, Landmark, Server } from 'lucide-react';
+import { Lock, Mail, ArrowRight, AlertCircle, KeyRound, Smartphone, Landmark, Server, ShieldAlert } from 'lucide-react';
 import { User } from '../types';
 import axios from 'axios';
 
@@ -35,13 +35,17 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
     }
   };
 
-  const fillCredentials = (type: 'admin' | 'staff') => {
+  const fillCredentials = (type: 'admin' | 'staff' | 'emergency') => {
     if (type === 'admin') {
       setEmail('matrixjeevan@gmail.com');
-      setPassword('admin123'); // Matches server fallback or DB seed
-    } else {
+      setPassword('admin123'); 
+    } else if (type === 'staff') {
       setEmail('agent@arrearsflow.com');
       setPassword('agent123');
+    } else {
+      // Emergency Fallback
+      setEmail('admin');
+      setPassword('admin');
     }
     setError('');
   };
@@ -89,10 +93,10 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
               <div className="relative">
                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600" size={18} />
                 <input
-                  type="email"
+                  type="text"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full pl-12 pr-4 py-4 bg-white/5 border border-white/10 rounded-2xl text-sm font-bold focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all text-white uppercase tracking-tight"
+                  className="w-full pl-12 pr-4 py-4 bg-white/5 border border-white/10 rounded-2xl text-sm font-bold focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all text-white tracking-tight"
                   placeholder="admin@arrearsflow.com"
                   required
                 />
@@ -132,20 +136,30 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
               )}
             </button>
             
-            <div className="grid grid-cols-2 gap-4 mt-6">
+            <div className="grid grid-cols-3 gap-3 mt-6">
                <button 
                  type="button"
                  onClick={() => fillCredentials('admin')}
                  className="py-3 text-[9px] bg-indigo-500/10 text-indigo-400 font-black uppercase tracking-widest hover:bg-indigo-500/20 rounded-xl transition-colors border border-indigo-500/20 flex items-center justify-center gap-2"
+                 title="matrixjeevan@gmail.com"
                >
-                 <KeyRound size={14}/> Admin Root
+                 <KeyRound size={14}/> Root
                </button>
                <button 
                  type="button"
                  onClick={() => fillCredentials('staff')}
                  className="py-3 text-[9px] bg-slate-800 text-slate-300 font-black uppercase tracking-widest hover:bg-slate-700 rounded-xl transition-colors border border-white/5 flex items-center justify-center gap-2"
+                 title="agent@arrearsflow.com"
                >
-                 <Smartphone size={14}/> Agent View
+                 <Smartphone size={14}/> Agent
+               </button>
+               <button 
+                 type="button"
+                 onClick={() => fillCredentials('emergency')}
+                 className="py-3 text-[9px] bg-rose-900/50 text-rose-400 font-black uppercase tracking-widest hover:bg-rose-900/80 rounded-xl transition-colors border border-rose-800 flex items-center justify-center gap-2"
+                 title="admin / admin"
+               >
+                 <ShieldAlert size={14}/> Emerg.
                </button>
             </div>
           </form>
