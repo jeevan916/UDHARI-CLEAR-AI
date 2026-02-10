@@ -16,7 +16,7 @@ const __dirname = path.dirname(__filename);
 const SYSTEM_IDENTITY = {
   node_id: process.env.NODE_ID || os.hostname(),
   environment: process.env.NODE_ENV || "production",
-  version: "7.3.0-MASTER-FILE-SYNC",
+  version: "7.4.0-HOSTINGER-STABLE",
   status: "BOOTING",
   db_health: "DISCONNECTED",
   last_error: null as any,
@@ -96,30 +96,49 @@ app.use(express.json());
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
 
-// CRITICAL: Hostinger Configuration Strategy
-const getDbConfig = () => ({
-  host: process.env.DB_HOST || '127.0.0.1', // Force IPv4. 'localhost' often resolves to ::1 on Node 17+ which fails on some Hosts
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,
-  port: Number(process.env.DB_PORT) || 3306,
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0,
-  enableKeepAlive: true,
-  keepAliveInitialDelay: 10000,
-  connectTimeout: 20000, // Extended for shared hosting latency
-  charset: 'utf8mb4', // Essential for WhatsApp Emojis/Indian Languages
-  timezone: '+05:30', // IST - Critical for financial ledger dates
-  decimalNumbers: true, // Return DECIMAL types as JS numbers (not strings)
-  multipleStatements: true // Required to execute the Master Schema file
-});
+// CRITICAL: Hostinger Configuration Strategy with Socket Support
+const getDbConfig = () => {
+  const config: any = {
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME,
+    waitForConnections: true,
+    connectionLimit: 10,
+    queueLimit: 0,
+    enableKeepAlive: true,
+    keepAliveInitialDelay: 10000,
+    connectTimeout: 20000, // Extended for shared hosting latency
+    charset: 'utf8mb4', // Essential for WhatsApp Emojis/Indian Languages
+    timezone: '+05:30', // IST - Critical for financial ledger dates
+    decimalNumbers: true, // Return DECIMAL types as JS numbers (not strings)
+    multipleStatements: true // Required to execute the Master Schema file
+  };
 
+  // If a socket path is provided (common in enterprise cloud/Hostinger), prioritize it over TCP
+  if (process.env.DB_SOCKET_PATH) {
+    config.socketPath = process.env.DB_SOCKET_PATH;
+    logDebug(`[DB] Using Unix Socket: ${config.socketPath}`);
+  } else {
+    // Default to IPv4 loopback to avoid Node 17+ localhost::1 issues
+    config.host = process.env.DB_HOST || '127.0.0.1'; 
+    config.port = Number(process.env.DB_PORT) || 3306;
+    logDebug(`[DB] Using TCP: ${config.host}:${config.port}`);
+  }
+
+  return config;
+};
+
+// Diagnostic only - does not block application boot
 const performNetworkScan = (host: string, port: number): Promise<string> => {
   return new Promise((resolve) => {
+    // Skip TCP scan if using socket
+    if (process.env.DB_SOCKET_PATH) {
+       resolve('SOCKET_MODE');
+       return;
+    }
+
     logDebug(`[NET] Initiating raw TCP socket to ${host}:${port}...`);
     const socket = new net.Socket();
-    
     socket.setTimeout(3000); // 3s timeout for raw TCP
     
     socket.on('connect', () => {
@@ -148,8 +167,7 @@ let pool: mysql.Pool;
 
 /**
  * MASTER FILE SYNC ENGINE
- * Reads the raw 'database.sql' and applies it to the DB.
- * This ensures the file is the Single Source of Truth.
+ * Reads 'database.sql' but cleans it to prevent Hostinger permission errors.
  */
 const initializeSchema = async () => {
   logDebug("[SCHEMA] Starting Master File Sync...");
@@ -162,38 +180,40 @@ const initializeSchema = async () => {
      throw new Error("SCHEMA_FILE_MISSING");
   }
 
-  const sqlContent = fs.readFileSync(schemaPath, 'utf-8');
+  let sqlContent = fs.readFileSync(schemaPath, 'utf-8');
   
-  // Remove comments and split by semi-colon to get individual statements
-  // Note: This is a basic parser. For complex procedures, a more robust parser is needed.
-  // Ideally, use multipleStatements: true in connection config and run chunks.
+  // --- ROBUST SQL SANITIZATION ---
+  // 1. Remove comments (both -- and /* */)
+  sqlContent = sqlContent.replace(/--.*$/gm, ''); // remove single line comments
+  sqlContent = sqlContent.replace(/\/\*[\s\S]*?\*\//g, ''); // remove block comments
   
+  // 2. Remove 'CREATE DATABASE' and 'USE' statements
+  // Hostinger assigns a specific DB name. Creating/Switching DBs in code often causes 
+  // "Access Denied" errors because the user script doesn't have permissions or the DB name mismatches.
+  sqlContent = sqlContent.replace(/CREATE DATABASE.*?;/gi, '');
+  sqlContent = sqlContent.replace(/USE .*?;/gi, '');
+  
+  // 3. Remove empty lines
+  sqlContent = sqlContent.replace(/^\s*[\r\n]/gm, '');
+
   try {
     SYSTEM_IDENTITY.network_trace.schema_status = 'EXECUTING';
     
-    // Filter out "USE" statements if we are already connected to the DB via config
-    // But keep CREATE TABLEs.
-    
-    // We split by ; but we need to respect ; inside triggers/procedures. 
-    // For this app, standard ; split is likely safe for table definitions.
+    // Split by semi-colon to get individual statements
     const statements = sqlContent
       .split(';')
       .map(s => s.trim())
       .filter(s => s.length > 0);
 
-    for (const statement of statements) {
-       // Skip USE statements as pool handles DB selection
-       if (statement.toUpperCase().startsWith('USE ')) continue;
-       
-       // Skip CREATE DATABASE if we are already connected (likely permissions issue on shared host anyway)
-       if (statement.toUpperCase().startsWith('CREATE DATABASE')) continue;
+    logDebug(`[SCHEMA] Found ${statements.length} SQL statements to verify.`);
 
+    for (const statement of statements) {
        try {
           await pool.query(statement);
        } catch (err: any) {
-          // Ignore "Table already exists" errors silently, log others
+          // Ignore "Table already exists" errors silently
           if (err.code !== 'ER_TABLE_EXISTS_ERROR') {
-             logDebug(`[SCHEMA] Warning on statement: ${statement.substring(0, 50)}... -> ${err.message}`);
+             logDebug(`[SCHEMA] Warning on statement: ${statement.substring(0, 30)}... -> ${err.message}`);
           }
        }
     }
@@ -217,15 +237,17 @@ const bootSystem = async () => {
     return;
   }
 
-  // Force IPv4 for Hostinger/Node compatibility
   const targetHost = process.env.DB_HOST || '127.0.0.1';
   SYSTEM_IDENTITY.network_trace.target_host = targetHost;
   
-  const tcpStatus = await performNetworkScan(targetHost, Number(process.env.DB_PORT) || 3306);
-  SYSTEM_IDENTITY.network_trace.tcp_port_3306 = tcpStatus;
+  // Perform TCP check only if we are using TCP
+  if (!process.env.DB_SOCKET_PATH) {
+     const tcpStatus = await performNetworkScan(targetHost, Number(process.env.DB_PORT) || 3306);
+     SYSTEM_IDENTITY.network_trace.tcp_port_3306 = tcpStatus;
+  }
 
   try {
-    logDebug(`[DB] Attempting MySQL Protocol Handshake with ${targetHost}...`);
+    logDebug(`[DB] Attempting MySQL Protocol Handshake...`);
     const tempPool = mysql.createPool(getDbConfig());
     
     const conn = await tempPool.getConnection();
@@ -248,7 +270,7 @@ const bootSystem = async () => {
         code: err.code || 'NO_CODE',
         message: err.message,
         host: targetHost,
-        hint: "Check if 127.0.0.1 is correct, user has privileges, and database name exists."
+        hint: "Check DB_USER permissions, DB_NAME existence, and if 127.0.0.1 vs localhost is correct."
     };
     activateSimulationMode(SYSTEM_IDENTITY.last_error);
   }

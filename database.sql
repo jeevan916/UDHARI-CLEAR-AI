@@ -2,8 +2,10 @@
 -- Master Schema Definition
 -- Target: MySQL 8.0+ / MariaDB 10.5+
 
-CREATE DATABASE IF NOT EXISTS sanghavi_recovery;
-USE sanghavi_recovery;
+-- NOTE: CREATE DATABASE and USE are commented out for Hostinger compatibility.
+-- The application connects to the DB specified in .env directly.
+-- CREATE DATABASE IF NOT EXISTS sanghavi_recovery;
+-- USE sanghavi_recovery;
 
 -- 1. IDENTITY & ACCESS MANAGEMENT
 CREATE TABLE IF NOT EXISTS users (
