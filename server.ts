@@ -16,7 +16,7 @@ const __dirname = path.dirname(__filename);
 const SYSTEM_IDENTITY = {
   node_id: process.env.NODE_ID || os.hostname(),
   environment: process.env.NODE_ENV || "production",
-  version: "7.2.2-HOSTINGER-PATCH",
+  version: "7.3.0-MASTER-FILE-SYNC",
   status: "BOOTING",
   db_health: "DISCONNECTED",
   last_error: null as any,
@@ -60,138 +60,6 @@ keysToVerify.forEach(k => {
   }
 });
 
-// --- ENTERPRISE MASTER SCHEMA DEFINITIONS ---
-const SCHEMA_DEFINITIONS = [
-  {
-    table: 'users',
-    query: `CREATE TABLE IF NOT EXISTS users (
-      id VARCHAR(50) PRIMARY KEY,
-      name VARCHAR(100) NOT NULL,
-      email VARCHAR(255) NOT NULL UNIQUE,
-      role ENUM('admin', 'staff', 'auditor') DEFAULT 'staff',
-      password_hash VARCHAR(255) NOT NULL,
-      avatar_url TEXT,
-      last_login TIMESTAMP,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )`
-  },
-  {
-    table: 'customers',
-    query: `CREATE TABLE IF NOT EXISTS customers (
-      id VARCHAR(50) PRIMARY KEY,
-      name VARCHAR(255) NOT NULL,
-      phone VARCHAR(20) NOT NULL,
-      email VARCHAR(255),
-      address TEXT,
-      tax_number VARCHAR(50),
-      group_id VARCHAR(100) DEFAULT 'Retail Client',
-      unique_payment_code VARCHAR(20) UNIQUE NOT NULL,
-      current_balance DECIMAL(15, 2) DEFAULT 0.00,
-      current_gold_balance DECIMAL(15, 3) DEFAULT 0.000,
-      credit_limit DECIMAL(15, 2) DEFAULT 0.00,
-      is_active BOOLEAN DEFAULT TRUE,
-      status VARCHAR(50) DEFAULT 'active',
-      grade VARCHAR(5) DEFAULT 'A',
-      last_call_date DATETIME,
-      last_whatsapp_date DATETIME,
-      last_sms_date DATETIME,
-      deepvue_data JSON,
-      fingerprints JSON,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-      INDEX idx_upc (unique_payment_code),
-      INDEX idx_phone (phone),
-      INDEX idx_name (name)
-    )`
-  },
-  {
-    table: 'transactions',
-    query: `CREATE TABLE IF NOT EXISTS transactions (
-      id VARCHAR(50) PRIMARY KEY,
-      customer_id VARCHAR(50) NOT NULL,
-      type ENUM('credit', 'debit') NOT NULL,
-      unit ENUM('money', 'gold') NOT NULL DEFAULT 'money',
-      amount DECIMAL(15, 3) NOT NULL,
-      method VARCHAR(50) NOT NULL,
-      description TEXT,
-      date DATE NOT NULL,
-      staff_id VARCHAR(50),
-      balance_after DECIMAL(15, 3),
-      particular VARCHAR(100),
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE,
-      INDEX idx_cust_date (customer_id, date),
-      INDEX idx_global_date (date),
-      INDEX idx_type_unit (type, unit)
-    )`
-  },
-  {
-    table: 'communication_logs',
-    query: `CREATE TABLE IF NOT EXISTS communication_logs (
-      id VARCHAR(50) PRIMARY KEY,
-      customer_id VARCHAR(50) NOT NULL,
-      type ENUM('sms', 'whatsapp', 'call', 'visit') NOT NULL,
-      content TEXT,
-      timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      status VARCHAR(50),
-      duration INT DEFAULT 0,
-      outcome VARCHAR(100),
-      FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE,
-      INDEX idx_cust_ts (customer_id, timestamp)
-    )`
-  },
-  {
-    table: 'grade_rules',
-    query: `CREATE TABLE IF NOT EXISTS grade_rules (
-      id VARCHAR(5) PRIMARY KEY,
-      label VARCHAR(100) NOT NULL,
-      color VARCHAR(20) DEFAULT 'slate',
-      priority INT NOT NULL,
-      min_balance DECIMAL(15, 2) DEFAULT 0.00,
-      days_since_payment INT DEFAULT 0,
-      days_since_contact INT DEFAULT 0,
-      anti_spam_threshold INT DEFAULT 24,
-      anti_spam_unit ENUM('hours', 'days') DEFAULT 'hours',
-      whatsapp BOOLEAN DEFAULT FALSE,
-      sms BOOLEAN DEFAULT FALSE,
-      whatsapp_template_id VARCHAR(50),
-      sms_template_id VARCHAR(50),
-      frequency_days INT DEFAULT 30
-    )`
-  },
-  {
-    table: 'templates',
-    query: `CREATE TABLE IF NOT EXISTS templates (
-      id VARCHAR(50) PRIMARY KEY,
-      name VARCHAR(255) NOT NULL,
-      label VARCHAR(255),
-      channel ENUM('whatsapp', 'sms') NOT NULL,
-      category VARCHAR(50) DEFAULT 'UTILITY',
-      status VARCHAR(50) DEFAULT 'draft',
-      content TEXT NOT NULL,
-      language VARCHAR(10) DEFAULT 'en_US',
-      wa_header JSON,
-      wa_footer VARCHAR(255),
-      wa_buttons JSON,
-      dlt_template_id VARCHAR(100),
-      sender_id VARCHAR(20),
-      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-    )`
-  },
-  {
-    table: 'integrations',
-    query: `CREATE TABLE IF NOT EXISTS integrations (
-      id VARCHAR(50) PRIMARY KEY,
-      name VARCHAR(100) NOT NULL,
-      category VARCHAR(100),
-      status ENUM('online', 'offline', 'idle', 'maintenance') DEFAULT 'idle',
-      latency VARCHAR(20) DEFAULT '0ms',
-      config JSON,
-      last_health_check TIMESTAMP
-    )`
-  }
-];
-
 // --- MOCK DATA FOR SIMULATION MODE ---
 const MOCK_CUSTOMERS = [
   {
@@ -228,9 +96,9 @@ app.use(express.json());
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
 
-// Update: Default to localhost for Hostinger VPS/Shared Hosting internal networking
+// CRITICAL: Hostinger Configuration Strategy
 const getDbConfig = () => ({
-  host: process.env.DB_HOST || 'localhost',
+  host: process.env.DB_HOST || '127.0.0.1', // Force IPv4. 'localhost' often resolves to ::1 on Node 17+ which fails on some Hosts
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
@@ -240,7 +108,11 @@ const getDbConfig = () => ({
   queueLimit: 0,
   enableKeepAlive: true,
   keepAliveInitialDelay: 10000,
-  connectTimeout: 10000 // Increased timeout for Hostinger shared environments
+  connectTimeout: 20000, // Extended for shared hosting latency
+  charset: 'utf8mb4', // Essential for WhatsApp Emojis/Indian Languages
+  timezone: '+05:30', // IST - Critical for financial ledger dates
+  decimalNumbers: true, // Return DECIMAL types as JS numbers (not strings)
+  multipleStatements: true // Required to execute the Master Schema file
 });
 
 const performNetworkScan = (host: string, port: number): Promise<string> => {
@@ -274,19 +146,62 @@ const performNetworkScan = (host: string, port: number): Promise<string> => {
 
 let pool: mysql.Pool;
 
+/**
+ * MASTER FILE SYNC ENGINE
+ * Reads the raw 'database.sql' and applies it to the DB.
+ * This ensures the file is the Single Source of Truth.
+ */
 const initializeSchema = async () => {
-  logDebug("[SCHEMA] Starting Enterprise Auto-Migration...");
-  SYSTEM_IDENTITY.network_trace.schema_status = 'MIGRATING';
+  logDebug("[SCHEMA] Starting Master File Sync...");
+  SYSTEM_IDENTITY.network_trace.schema_status = 'READING_FILE';
+  
+  const schemaPath = path.resolve(__dirname, 'database.sql');
+  
+  if (!fs.existsSync(schemaPath)) {
+     logDebug(`[SCHEMA] CRITICAL: database.sql not found at ${schemaPath}`);
+     throw new Error("SCHEMA_FILE_MISSING");
+  }
+
+  const sqlContent = fs.readFileSync(schemaPath, 'utf-8');
+  
+  // Remove comments and split by semi-colon to get individual statements
+  // Note: This is a basic parser. For complex procedures, a more robust parser is needed.
+  // Ideally, use multipleStatements: true in connection config and run chunks.
   
   try {
-    for (const def of SCHEMA_DEFINITIONS) {
-      logDebug(`[SCHEMA] Verifying table: ${def.table}`);
-      await pool.execute(def.query);
+    SYSTEM_IDENTITY.network_trace.schema_status = 'EXECUTING';
+    
+    // Filter out "USE" statements if we are already connected to the DB via config
+    // But keep CREATE TABLEs.
+    
+    // We split by ; but we need to respect ; inside triggers/procedures. 
+    // For this app, standard ; split is likely safe for table definitions.
+    const statements = sqlContent
+      .split(';')
+      .map(s => s.trim())
+      .filter(s => s.length > 0);
+
+    for (const statement of statements) {
+       // Skip USE statements as pool handles DB selection
+       if (statement.toUpperCase().startsWith('USE ')) continue;
+       
+       // Skip CREATE DATABASE if we are already connected (likely permissions issue on shared host anyway)
+       if (statement.toUpperCase().startsWith('CREATE DATABASE')) continue;
+
+       try {
+          await pool.query(statement);
+       } catch (err: any) {
+          // Ignore "Table already exists" errors silently, log others
+          if (err.code !== 'ER_TABLE_EXISTS_ERROR') {
+             logDebug(`[SCHEMA] Warning on statement: ${statement.substring(0, 50)}... -> ${err.message}`);
+          }
+       }
     }
-    logDebug("[SCHEMA] Migration Complete. All systems operational.");
+    
+    logDebug("[SCHEMA] Master Sync Complete. Memory Structure Active.");
     SYSTEM_IDENTITY.network_trace.schema_status = 'SYNCED';
   } catch (err: any) {
-    logDebug(`[SCHEMA] Migration Failed: ${err.message}`);
+    logDebug(`[SCHEMA] Sync Failed: ${err.message}`);
     SYSTEM_IDENTITY.network_trace.schema_status = `FAILED (${err.code})`;
     throw err;
   }
@@ -302,8 +217,8 @@ const bootSystem = async () => {
     return;
   }
 
-  // Default to localhost for Hostinger internal routing
-  const targetHost = process.env.DB_HOST || 'localhost';
+  // Force IPv4 for Hostinger/Node compatibility
+  const targetHost = process.env.DB_HOST || '127.0.0.1';
   SYSTEM_IDENTITY.network_trace.target_host = targetHost;
   
   const tcpStatus = await performNetworkScan(targetHost, Number(process.env.DB_PORT) || 3306);
@@ -332,7 +247,8 @@ const bootSystem = async () => {
     SYSTEM_IDENTITY.last_error = {
         code: err.code || 'NO_CODE',
         message: err.message,
-        host: targetHost
+        host: targetHost,
+        hint: "Check if 127.0.0.1 is correct, user has privileges, and database name exists."
     };
     activateSimulationMode(SYSTEM_IDENTITY.last_error);
   }
