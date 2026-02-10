@@ -36,12 +36,26 @@ export const SystemVaultView: React.FC<Props> = ({ dbStatus, dbStructure, system
                Used for diagnosing MySQL handshakes and DDL validation based on your .env configuration.
             </p>
             {dbStatus === 'SIMULATION' && (
-               <div className="mt-6 flex items-center gap-3 bg-amber-900/50 border border-amber-700/50 p-4 rounded-2xl w-fit">
-                  <AlertTriangle className="text-amber-400" size={20}/>
-                  <div>
-                     <p className="text-xs font-black text-amber-100 uppercase">Fault-Tolerant Simulation Active</p>
-                     <p className="text-[10px] text-amber-200/60">Database connection failed. Serving high-fidelity mock data to maintain dashboard availability.</p>
+               <div className="mt-6 flex flex-col gap-4">
+                  <div className="flex items-center gap-3 bg-amber-900/50 border border-amber-700/50 p-4 rounded-2xl w-fit">
+                     <AlertTriangle className="text-amber-400" size={20}/>
+                     <div>
+                        <p className="text-xs font-black text-amber-100 uppercase">Fault-Tolerant Simulation Active</p>
+                        <p className="text-[10px] text-amber-200/60">Database connection failed. Serving high-fidelity mock data to maintain dashboard availability.</p>
+                     </div>
                   </div>
+                  
+                  {/* RAW ERROR DUMP */}
+                  {lastError && (
+                     <div className="p-4 bg-black/40 rounded-2xl border border-amber-900/50 w-full max-w-3xl">
+                        <p className="text-[10px] font-black text-rose-400 uppercase tracking-widest mb-2 flex items-center gap-2">
+                           <Code size={12}/> Raw Error Dump (System Core)
+                        </p>
+                        <pre className="font-mono text-[10px] text-rose-200/80 overflow-x-auto whitespace-pre-wrap leading-relaxed select-text">
+                           {JSON.stringify(lastError, null, 2)}
+                        </pre>
+                     </div>
+                  )}
                </div>
             )}
          </div>
@@ -213,7 +227,7 @@ export const SystemVaultView: React.FC<Props> = ({ dbStatus, dbStructure, system
                </div>
                
                <div className="p-10 flex-1 overflow-y-auto custom-scrollbar text-[10px] leading-relaxed space-y-2 bg-black/20">
-                  {systemLogs.filter(l => l.includes('REMOTE:') || l.includes('CRITICAL:') || l.includes('TERMINAL_ERROR:') || l.includes('WARNING:') || l.includes('[NET]') || l.includes('[DB]')).map((log, i) => (
+                  {systemLogs.filter(l => l.includes('REMOTE:') || l.includes('CRITICAL:') || l.includes('TERMINAL_ERROR:') || l.includes('WARNING:') || l.includes('[NET]') || l.includes('[DB]') || l.includes('RAW DUMP')).map((log, i) => (
                      <div key={i} className="flex gap-4 p-1 rounded transition-colors hover:bg-white/5">
                         <span className={`break-all font-bold ${
                            log.includes('FAILED') || log.includes('CRITICAL') || log.includes('ERR') || log.includes('Timeout') ? 'text-rose-400' : 

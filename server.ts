@@ -16,7 +16,7 @@ const __dirname = path.dirname(__filename);
 const SYSTEM_IDENTITY = {
   node_id: process.env.NODE_ID || os.hostname(),
   environment: process.env.NODE_ENV || "production",
-  version: "7.4.0-HOSTINGER-STABLE",
+  version: "7.5.0-VERBOSE-DEBUG",
   status: "BOOTING",
   db_health: "DISCONNECTED",
   last_error: null as any,
@@ -38,6 +38,23 @@ const logDebug = (msg: string) => {
   console.log(formatted);
   SYSTEM_IDENTITY.debug_logs.push(formatted);
   if (SYSTEM_IDENTITY.debug_logs.length > 200) SYSTEM_IDENTITY.debug_logs.shift();
+};
+
+const logRawError = (label: string, err: any) => {
+  const errorObj = {
+    message: err.message,
+    code: err.code,
+    errno: err.errno,
+    syscall: err.syscall,
+    hostname: err.hostname,
+    address: err.address,
+    port: err.port,
+    sqlMessage: err.sqlMessage,
+    sqlState: err.sqlState,
+    fatal: err.fatal
+  };
+  logDebug(`[${label}] RAW DUMP: ${JSON.stringify(errorObj)}`);
+  return errorObj;
 };
 
 const envPath = path.resolve('.env');
@@ -117,12 +134,12 @@ const getDbConfig = () => {
   // If a socket path is provided (common in enterprise cloud/Hostinger), prioritize it over TCP
   if (process.env.DB_SOCKET_PATH) {
     config.socketPath = process.env.DB_SOCKET_PATH;
-    logDebug(`[DB] Using Unix Socket: ${config.socketPath}`);
+    logDebug(`[DB_CONFIG] Using Unix Socket: ${config.socketPath}`);
   } else {
     // Default to IPv4 loopback to avoid Node 17+ localhost::1 issues
     config.host = process.env.DB_HOST || '127.0.0.1'; 
     config.port = Number(process.env.DB_PORT) || 3306;
-    logDebug(`[DB] Using TCP: ${config.host}:${config.port}`);
+    logDebug(`[DB_CONFIG] Using TCP: ${config.host}:${config.port} (User: ${config.user})`);
   }
 
   return config;
@@ -183,23 +200,15 @@ const initializeSchema = async () => {
   let sqlContent = fs.readFileSync(schemaPath, 'utf-8');
   
   // --- ROBUST SQL SANITIZATION ---
-  // 1. Remove comments (both -- and /* */)
   sqlContent = sqlContent.replace(/--.*$/gm, ''); // remove single line comments
   sqlContent = sqlContent.replace(/\/\*[\s\S]*?\*\//g, ''); // remove block comments
-  
-  // 2. Remove 'CREATE DATABASE' and 'USE' statements
-  // Hostinger assigns a specific DB name. Creating/Switching DBs in code often causes 
-  // "Access Denied" errors because the user script doesn't have permissions or the DB name mismatches.
   sqlContent = sqlContent.replace(/CREATE DATABASE.*?;/gi, '');
   sqlContent = sqlContent.replace(/USE .*?;/gi, '');
-  
-  // 3. Remove empty lines
   sqlContent = sqlContent.replace(/^\s*[\r\n]/gm, '');
 
   try {
     SYSTEM_IDENTITY.network_trace.schema_status = 'EXECUTING';
     
-    // Split by semi-colon to get individual statements
     const statements = sqlContent
       .split(';')
       .map(s => s.trim())
@@ -222,6 +231,7 @@ const initializeSchema = async () => {
     SYSTEM_IDENTITY.network_trace.schema_status = 'SYNCED';
   } catch (err: any) {
     logDebug(`[SCHEMA] Sync Failed: ${err.message}`);
+    logRawError("SCHEMA_FAIL", err);
     SYSTEM_IDENTITY.network_trace.schema_status = `FAILED (${err.code})`;
     throw err;
   }
@@ -264,13 +274,15 @@ const bootSystem = async () => {
 
     await introspectVault();
   } catch (err: any) {
-    logDebug(`[DB] Handshake/Schema FAILED: ${err.code} - ${err.message}`);
+    const rawErr = logRawError("BOOT_FATAL", err);
     SYSTEM_IDENTITY.network_trace.auth_status = `FAILED (${err.code})`;
+    
+    // Enrich error for frontend
     SYSTEM_IDENTITY.last_error = {
-        code: err.code || 'NO_CODE',
-        message: err.message,
-        host: targetHost,
-        hint: "Check DB_USER permissions, DB_NAME existence, and if 127.0.0.1 vs localhost is correct."
+        ...rawErr,
+        hint: err.code === 'ECONNREFUSED' ? "Database is refusing TCP. Check if DB_HOST is 127.0.0.1 and DB_PORT is 3306." :
+              err.code === 'ER_ACCESS_DENIED_ERROR' ? "Invalid Username/Password. Check .env DB_USER and DB_PASSWORD." :
+              err.code === 'ENOTFOUND' ? "Hostname cannot be resolved. Check DB_HOST." : "Check raw logs."
     };
     activateSimulationMode(SYSTEM_IDENTITY.last_error);
   }
@@ -303,7 +315,7 @@ const introspectVault = async () => {
       logDebug("WARNING: Table 'customers' not found after migration.");
     }
   } catch (err: any) {
-    logDebug(`VAULT_ERROR: ${err.message}`);
+    logRawError("INTROSPECT_FAIL", err);
   }
 };
 
