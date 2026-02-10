@@ -121,7 +121,7 @@ export const WhatsAppConfigView: React.FC<{ isAdmin: boolean }> = ({ isAdmin }) 
             </div>
             <div className="pt-4 p-6 bg-slate-900 border border-slate-800 rounded-3xl">
               <p className="text-[10px] font-bold text-slate-400 uppercase leading-relaxed tracking-wider">
-                Hostinger Node 72.61.175.20 is actively receiving payloads. Inbound messages from Meta are being parsed and committed to the communication ledger in real-time.
+                System Node is actively receiving payloads. Inbound messages from Meta are being parsed and committed to the communication ledger in real-time.
               </p>
             </div>
           </div>

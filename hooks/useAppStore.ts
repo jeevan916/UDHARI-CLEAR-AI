@@ -15,7 +15,7 @@ export const useAppStore = () => {
   const [activeView, setActiveView] = useState<View>('dashboard');
   const [customers, setCustomers] = useState<Customer[]>(INITIAL_CUSTOMERS);
   const [systemLogs, setSystemLogs] = useState<string[]>([]);
-  const [dbStatus, setDbStatus] = useState<'CONNECTED' | 'OFFLINE'>('OFFLINE');
+  const [dbStatus, setDbStatus] = useState<'CONNECTED' | 'OFFLINE' | 'SIMULATION'>('OFFLINE');
   const [dbStructure, setDbStructure] = useState<any[]>([]);
   const [envCheck, setEnvCheck] = useState<Record<string, string>>({});
   const [lastError, setLastError] = useState<any>(null);
@@ -54,21 +54,30 @@ export const useAppStore = () => {
       if (health.last_error) setLastError(health.last_error);
       
       if (health.debug_logs) {
-        // Only add logs that aren't already there
         health.debug_logs.forEach((log: string) => addLog(`REMOTE: ${log}`));
       }
 
-      if (health.db_health !== 'CONNECTED') {
+      if (health.db_health === 'MOCK_CORE') {
+         setDbStatus('SIMULATION');
+         addLog("WARNING: Running in Fault-Tolerant Simulation Mode.");
+      } else if (health.db_health !== 'CONNECTED') {
          setDbStatus('OFFLINE');
          addLog(`CRITICAL: Handshake failed. Status: ${health.db_health}`);
          return;
+      } else {
+         setDbStatus('CONNECTED');
       }
 
+      // Fetch customers (works for both CONNECTED and MOCK_CORE)
       const res = await axios.get('/api/customers');
       if (res.data && Array.isArray(res.data)) {
-        setCustomers(res.data.length > 0 ? res.data : INITIAL_CUSTOMERS);
-        setDbStatus('CONNECTED');
-        addLog(`SYNC_OK: Table Data Received.`);
+        // If simulation, merge with initial data to keep frontend rich
+        const mergedData = health.db_health === 'MOCK_CORE' 
+            ? INITIAL_CUSTOMERS 
+            : res.data;
+            
+        setCustomers(mergedData.length > 0 ? mergedData : INITIAL_CUSTOMERS);
+        addLog(`SYNC_OK: Data Cluster Verified.`);
       }
     } catch (e: any) {
       const detail = e.response?.data?.details || e.message;

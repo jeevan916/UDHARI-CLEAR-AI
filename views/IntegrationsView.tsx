@@ -65,7 +65,7 @@ export const IntegrationsView: React.FC<Props> = ({ integrations, onUpdateConfig
              <div className="p-4 bg-white/10 rounded-2xl"><Server size={32}/></div>
              <div>
                 <h3 className="text-2xl font-black uppercase tracking-tight">Cluster Configuration</h3>
-                <p className="text-blue-400 font-mono text-xs mt-1">Hostinger Node: 72.61.175.20</p>
+                <p className="text-blue-400 font-mono text-xs mt-1">Environment Configured</p>
              </div>
           </div>
           
@@ -80,7 +80,7 @@ export const IntegrationsView: React.FC<Props> = ({ integrations, onUpdateConfig
              </div>
              <div className="flex justify-between items-center p-4 bg-white/5 rounded-xl border border-white/5">
                 <span className="text-slate-400">DB_STATUS</span>
-                <span className="text-amber-400">u477692720_ArrearsFlow (LOCKED)</span>
+                <span className="text-amber-400">ENV_MANAGED (LOCKED)</span>
              </div>
           </div>
        </div>
