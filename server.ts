@@ -16,7 +16,7 @@ const __dirname = path.dirname(__filename);
 const SYSTEM_IDENTITY = {
   node_id: process.env.NODE_ID || os.hostname(),
   environment: process.env.NODE_ENV || "production",
-  version: "7.0.0-ENV-STRICT",
+  version: "7.1.0-AUTO-MIGRATE",
   status: "BOOTING",
   db_health: "DISCONNECTED",
   last_error: null as any,
@@ -27,7 +27,8 @@ const SYSTEM_IDENTITY = {
     target_host: 'UNKNOWN',
     dns_resolved: false,
     tcp_port_3306: 'PENDING',
-    auth_status: 'PENDING'
+    auth_status: 'PENDING',
+    schema_status: 'PENDING'
   }
 };
 
@@ -59,6 +60,89 @@ keysToVerify.forEach(k => {
     SYSTEM_IDENTITY.env_check[k] = `PRESENT (${val.substring(0, 2)}***${val.substring(val.length - 1)})`;
   }
 });
+
+// --- SCHEMA DEFINITIONS (Enterprise Grade) ---
+const SCHEMA_DEFINITIONS = [
+  {
+    table: 'customers',
+    query: `CREATE TABLE IF NOT EXISTS customers (
+      id VARCHAR(50) PRIMARY KEY,
+      name VARCHAR(255) NOT NULL,
+      phone VARCHAR(20) NOT NULL,
+      email VARCHAR(255),
+      address TEXT,
+      tax_number VARCHAR(50),
+      group_id VARCHAR(100) DEFAULT 'Retail Client',
+      unique_payment_code VARCHAR(20) UNIQUE NOT NULL,
+      current_balance DECIMAL(15, 2) DEFAULT 0.00,
+      current_gold_balance DECIMAL(15, 3) DEFAULT 0.000,
+      credit_limit DECIMAL(15, 2) DEFAULT 0.00,
+      is_active BOOLEAN DEFAULT TRUE,
+      last_call_date DATETIME,
+      last_whatsapp_date DATETIME,
+      last_sms_date DATETIME,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      INDEX idx_upc (unique_payment_code),
+      INDEX idx_phone (phone),
+      INDEX idx_name (name)
+    )`
+  },
+  {
+    table: 'transactions',
+    query: `CREATE TABLE IF NOT EXISTS transactions (
+      id VARCHAR(50) PRIMARY KEY,
+      customer_id VARCHAR(50) NOT NULL,
+      type ENUM('credit', 'debit') NOT NULL,
+      unit ENUM('money', 'gold') NOT NULL DEFAULT 'money',
+      amount DECIMAL(15, 3) NOT NULL,
+      method VARCHAR(50) NOT NULL,
+      description TEXT,
+      date DATE NOT NULL,
+      staff_id VARCHAR(50),
+      balance_after DECIMAL(15, 3),
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE,
+      INDEX idx_cust_date (customer_id, date),
+      INDEX idx_global_date (date),
+      INDEX idx_type_unit (type, unit)
+    )`
+  },
+  {
+    table: 'communication_logs',
+    query: `CREATE TABLE IF NOT EXISTS communication_logs (
+      id VARCHAR(50) PRIMARY KEY,
+      customer_id VARCHAR(50) NOT NULL,
+      type ENUM('sms', 'whatsapp', 'call', 'visit') NOT NULL,
+      content TEXT,
+      timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      status VARCHAR(50),
+      duration INT DEFAULT 0,
+      outcome VARCHAR(100),
+      FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE,
+      INDEX idx_cust_ts (customer_id, timestamp)
+    )`
+  },
+  {
+    table: 'grade_rules',
+    query: `CREATE TABLE IF NOT EXISTS grade_rules (
+      id VARCHAR(5) PRIMARY KEY,
+      label VARCHAR(100) NOT NULL,
+      color VARCHAR(20) DEFAULT 'slate',
+      priority INT NOT NULL,
+      min_balance DECIMAL(15, 2) DEFAULT 0.00,
+      days_since_payment INT DEFAULT 0,
+      days_since_contact INT DEFAULT 0,
+      anti_spam_threshold INT DEFAULT 24,
+      anti_spam_unit ENUM('hours', 'days') DEFAULT 'hours',
+      whatsapp BOOLEAN DEFAULT FALSE,
+      sms BOOLEAN DEFAULT FALSE,
+      whatsapp_template_id VARCHAR(50),
+      sms_template_id VARCHAR(50),
+      frequency_days INT DEFAULT 30
+    )`
+  }
+];
 
 // --- MOCK DATA FOR SIMULATION MODE ---
 const MOCK_CUSTOMERS = [
@@ -142,6 +226,24 @@ const performNetworkScan = (host: string, port: number): Promise<string> => {
 
 let pool: mysql.Pool;
 
+const initializeSchema = async () => {
+  logDebug("[SCHEMA] Starting Auto-Migration Sequence...");
+  SYSTEM_IDENTITY.network_trace.schema_status = 'MIGRATING';
+  
+  try {
+    for (const def of SCHEMA_DEFINITIONS) {
+      logDebug(`[SCHEMA] Verifying table: ${def.table}`);
+      await pool.execute(def.query);
+    }
+    logDebug("[SCHEMA] Migration Complete. All tables operational.");
+    SYSTEM_IDENTITY.network_trace.schema_status = 'SYNCED';
+  } catch (err: any) {
+    logDebug(`[SCHEMA] Migration Failed: ${err.message}`);
+    SYSTEM_IDENTITY.network_trace.schema_status = `FAILED (${err.code})`;
+    throw err; // Re-throw to trigger simulation mode if schema is critical
+  }
+};
+
 const bootSystem = async () => {
   logDebug("Initializing Recovery Engine...");
   
@@ -167,13 +269,17 @@ const bootSystem = async () => {
     
     SYSTEM_IDENTITY.network_trace.auth_status = 'SUCCESS';
     pool = tempPool;
+    conn.release();
+
+    // 2. AUTO-MIGRATE SCHEMA
+    await initializeSchema();
+
     SYSTEM_IDENTITY.db_health = "CONNECTED";
     SYSTEM_IDENTITY.status = "OPERATIONAL";
-    conn.release();
 
     await introspectVault();
   } catch (err: any) {
-    logDebug(`[DB] Handshake FAILED: ${err.code} - ${err.message}`);
+    logDebug(`[DB] Handshake/Schema FAILED: ${err.code} - ${err.message}`);
     SYSTEM_IDENTITY.network_trace.auth_status = `FAILED (${err.code})`;
     SYSTEM_IDENTITY.last_error = {
         code: err.code || 'NO_CODE',
@@ -208,7 +314,7 @@ const introspectVault = async () => {
       SYSTEM_IDENTITY.database_structure = columns;
       logDebug("Table 'customers' successfully mapped to Memory Vault.");
     } else {
-      logDebug("WARNING: Table 'customers' not found.");
+      logDebug("WARNING: Table 'customers' not found after migration.");
     }
   } catch (err: any) {
     logDebug(`VAULT_ERROR: ${err.message}`);
