@@ -1,4 +1,4 @@
-import React, { Suspense, lazy } from 'react';
+import React, { Suspense, lazy, useState } from 'react';
 import { useAppStore } from './hooks/useAppStore';
 
 // Extracted Components
@@ -8,6 +8,7 @@ import { Header } from './components/Header';
 import { AiLoadingOverlay } from './components/AiLoadingOverlay';
 import { LedgerEntryModal } from './components/LedgerEntryModal';
 import { EditProfileModal } from './components/EditProfileModal';
+import { SharePaymentLinkModal } from './components/SharePaymentLinkModal';
 import { Loader2 } from 'lucide-react';
 
 // Lazy Loaded Views
@@ -35,6 +36,7 @@ const LoadingSpinner = () => (
 
 const App: React.FC = () => {
   const { state, actions } = useAppStore();
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
 
   if (!state.user) {
     return <LoginScreen onLogin={actions.setUser} />;
@@ -122,6 +124,7 @@ const App: React.FC = () => {
                 onEnrich={actions.enrichCustomerData}
                 onUpdateDeepvue={actions.updateCustomerDeepvueData}
                 onSetPrimaryContact={actions.setPrimaryContact}
+                onShareLink={() => setIsShareModalOpen(true)}
               />
             )}
 
@@ -202,12 +205,19 @@ const App: React.FC = () => {
       />
 
       {state.activeCustomer && (
-        <EditProfileModal 
-          isOpen={state.isEditModalOpen}
-          customer={state.activeCustomer}
-          onClose={() => actions.setIsEditModalOpen(false)}
-          onSave={actions.handleUpdateProfile}
-        />
+        <>
+          <EditProfileModal 
+            isOpen={state.isEditModalOpen}
+            customer={state.activeCustomer}
+            onClose={() => actions.setIsEditModalOpen(false)}
+            onSave={actions.handleUpdateProfile}
+          />
+          <SharePaymentLinkModal 
+            isOpen={isShareModalOpen}
+            onClose={() => setIsShareModalOpen(false)}
+            customer={state.activeCustomer}
+          />
+        </>
       )}
 
       {state.isAiLoading && <AiLoadingOverlay isAdmin={state.isAdmin} />}

@@ -16,7 +16,7 @@ const __dirname = path.dirname(__filename);
 const SYSTEM_IDENTITY = {
   node_id: process.env.NODE_ID || os.hostname(),
   environment: process.env.NODE_ENV || "production",
-  version: "7.1.0-AUTO-MIGRATE",
+  version: "7.2.2-HOSTINGER-PATCH",
   status: "BOOTING",
   db_health: "DISCONNECTED",
   last_error: null as any,
@@ -49,7 +49,6 @@ if (fs.existsSync(envPath)) {
   dotenv.config(); 
 }
 
-// Masked check of environment variables
 const keysToVerify = ['DB_HOST', 'DB_USER', 'DB_PASSWORD', 'DB_NAME', 'API_KEY', 'PORT', 'NODE_ENV'];
 keysToVerify.forEach(k => {
   const val = process.env[k];
@@ -61,8 +60,21 @@ keysToVerify.forEach(k => {
   }
 });
 
-// --- SCHEMA DEFINITIONS (Enterprise Grade) ---
+// --- ENTERPRISE MASTER SCHEMA DEFINITIONS ---
 const SCHEMA_DEFINITIONS = [
+  {
+    table: 'users',
+    query: `CREATE TABLE IF NOT EXISTS users (
+      id VARCHAR(50) PRIMARY KEY,
+      name VARCHAR(100) NOT NULL,
+      email VARCHAR(255) NOT NULL UNIQUE,
+      role ENUM('admin', 'staff', 'auditor') DEFAULT 'staff',
+      password_hash VARCHAR(255) NOT NULL,
+      avatar_url TEXT,
+      last_login TIMESTAMP,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`
+  },
   {
     table: 'customers',
     query: `CREATE TABLE IF NOT EXISTS customers (
@@ -78,9 +90,13 @@ const SCHEMA_DEFINITIONS = [
       current_gold_balance DECIMAL(15, 3) DEFAULT 0.000,
       credit_limit DECIMAL(15, 2) DEFAULT 0.00,
       is_active BOOLEAN DEFAULT TRUE,
+      status VARCHAR(50) DEFAULT 'active',
+      grade VARCHAR(5) DEFAULT 'A',
       last_call_date DATETIME,
       last_whatsapp_date DATETIME,
       last_sms_date DATETIME,
+      deepvue_data JSON,
+      fingerprints JSON,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
       INDEX idx_upc (unique_payment_code),
@@ -101,6 +117,7 @@ const SCHEMA_DEFINITIONS = [
       date DATE NOT NULL,
       staff_id VARCHAR(50),
       balance_after DECIMAL(15, 3),
+      particular VARCHAR(100),
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE,
       INDEX idx_cust_date (customer_id, date),
@@ -141,6 +158,37 @@ const SCHEMA_DEFINITIONS = [
       sms_template_id VARCHAR(50),
       frequency_days INT DEFAULT 30
     )`
+  },
+  {
+    table: 'templates',
+    query: `CREATE TABLE IF NOT EXISTS templates (
+      id VARCHAR(50) PRIMARY KEY,
+      name VARCHAR(255) NOT NULL,
+      label VARCHAR(255),
+      channel ENUM('whatsapp', 'sms') NOT NULL,
+      category VARCHAR(50) DEFAULT 'UTILITY',
+      status VARCHAR(50) DEFAULT 'draft',
+      content TEXT NOT NULL,
+      language VARCHAR(10) DEFAULT 'en_US',
+      wa_header JSON,
+      wa_footer VARCHAR(255),
+      wa_buttons JSON,
+      dlt_template_id VARCHAR(100),
+      sender_id VARCHAR(20),
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    )`
+  },
+  {
+    table: 'integrations',
+    query: `CREATE TABLE IF NOT EXISTS integrations (
+      id VARCHAR(50) PRIMARY KEY,
+      name VARCHAR(100) NOT NULL,
+      category VARCHAR(100),
+      status ENUM('online', 'offline', 'idle', 'maintenance') DEFAULT 'idle',
+      latency VARCHAR(20) DEFAULT '0ms',
+      config JSON,
+      last_health_check TIMESTAMP
+    )`
   }
 ];
 
@@ -180,6 +228,7 @@ app.use(express.json());
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
 
+// Update: Default to localhost for Hostinger VPS/Shared Hosting internal networking
 const getDbConfig = () => ({
   host: process.env.DB_HOST || 'localhost',
   user: process.env.DB_USER,
@@ -191,10 +240,9 @@ const getDbConfig = () => ({
   queueLimit: 0,
   enableKeepAlive: true,
   keepAliveInitialDelay: 10000,
-  connectTimeout: 5000 
+  connectTimeout: 10000 // Increased timeout for Hostinger shared environments
 });
 
-// --- NETWORK DIAGNOSTICS ---
 const performNetworkScan = (host: string, port: number): Promise<string> => {
   return new Promise((resolve) => {
     logDebug(`[NET] Initiating raw TCP socket to ${host}:${port}...`);
@@ -227,7 +275,7 @@ const performNetworkScan = (host: string, port: number): Promise<string> => {
 let pool: mysql.Pool;
 
 const initializeSchema = async () => {
-  logDebug("[SCHEMA] Starting Auto-Migration Sequence...");
+  logDebug("[SCHEMA] Starting Enterprise Auto-Migration...");
   SYSTEM_IDENTITY.network_trace.schema_status = 'MIGRATING';
   
   try {
@@ -235,28 +283,29 @@ const initializeSchema = async () => {
       logDebug(`[SCHEMA] Verifying table: ${def.table}`);
       await pool.execute(def.query);
     }
-    logDebug("[SCHEMA] Migration Complete. All tables operational.");
+    logDebug("[SCHEMA] Migration Complete. All systems operational.");
     SYSTEM_IDENTITY.network_trace.schema_status = 'SYNCED';
   } catch (err: any) {
     logDebug(`[SCHEMA] Migration Failed: ${err.message}`);
     SYSTEM_IDENTITY.network_trace.schema_status = `FAILED (${err.code})`;
-    throw err; // Re-throw to trigger simulation mode if schema is critical
+    throw err;
   }
 };
 
 const bootSystem = async () => {
   logDebug("Initializing Recovery Engine...");
   
-  if (!process.env.DB_USER || !process.env.DB_HOST) {
-    logDebug("[WARN] Database credentials incomplete. Booting directly to SIMULATION MODE.");
+  // HOSTINGER CONFIGURATION CHECK
+  if (!process.env.DB_USER) {
+    logDebug("[WARN] Database user incomplete. Booting directly to SIMULATION MODE.");
     activateSimulationMode({ code: 'MISSING_CREDENTIALS', message: 'Env vars not set' });
     return;
   }
 
-  const targetHost = process.env.DB_HOST;
+  // Default to localhost for Hostinger internal routing
+  const targetHost = process.env.DB_HOST || 'localhost';
   SYSTEM_IDENTITY.network_trace.target_host = targetHost;
   
-  // 1. RAW NETWORK DIAGNOSIS
   const tcpStatus = await performNetworkScan(targetHost, Number(process.env.DB_PORT) || 3306);
   SYSTEM_IDENTITY.network_trace.tcp_port_3306 = tcpStatus;
 
@@ -271,7 +320,6 @@ const bootSystem = async () => {
     pool = tempPool;
     conn.release();
 
-    // 2. AUTO-MIGRATE SCHEMA
     await initializeSchema();
 
     SYSTEM_IDENTITY.db_health = "CONNECTED";
