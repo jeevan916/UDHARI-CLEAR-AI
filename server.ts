@@ -12,15 +12,16 @@ import os from 'os';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// --- SECURE CONFIG LOADING & DIAGNOSTICS ---
+// --- 1. GLOBAL SYSTEM IDENTITY & LOG CAPTURE ---
+// This object acts as a "Black Box" flight recorder for the server.
 const SYSTEM_IDENTITY = {
   node_id: process.env.NODE_ID || os.hostname(),
   environment: process.env.NODE_ENV || "production",
-  version: "7.5.0-VERBOSE-DEBUG",
+  version: "7.6.0-ANTI-CRASH",
   status: "BOOTING",
   db_health: "DISCONNECTED",
   last_error: null as any,
-  debug_logs: [] as string[],
+  debug_logs: [] as string[], // Stores last 200 logs
   database_structure: [] as any[],
   env_check: {} as Record<string, string>,
   network_trace: {
@@ -32,37 +33,55 @@ const SYSTEM_IDENTITY = {
   }
 };
 
-const logDebug = (msg: string) => {
-  const timestamp = new Date().toISOString().split('T')[1].slice(0, 8);
-  const formatted = `[${timestamp}] ${msg}`;
-  console.log(formatted);
-  SYSTEM_IDENTITY.debug_logs.push(formatted);
-  if (SYSTEM_IDENTITY.debug_logs.length > 200) SYSTEM_IDENTITY.debug_logs.shift();
+// --- 2. INTERCEPT STDOUT/STDERR ---
+// This ensures that even library errors (like mysql2 connection errors) are captured for the UI.
+const originalConsoleLog = console.log;
+const originalConsoleError = console.error;
+
+const pushLog = (type: 'INFO' | 'ERR', ...args: any[]) => {
+  try {
+    const timestamp = new Date().toISOString().split('T')[1].slice(0, 8);
+    const msg = args.map(a => (typeof a === 'object' ? JSON.stringify(a) : String(a))).join(' ');
+    const formatted = `[${timestamp}] [${type}] ${msg}`;
+    
+    SYSTEM_IDENTITY.debug_logs.unshift(formatted); // Add to top
+    if (SYSTEM_IDENTITY.debug_logs.length > 500) SYSTEM_IDENTITY.debug_logs.pop(); // Keep last 500
+  } catch (e) {
+    // Fallback if logging fails
+  }
 };
 
-const logRawError = (label: string, err: any) => {
-  const errorObj = {
-    message: err.message,
-    code: err.code,
-    errno: err.errno,
-    syscall: err.syscall,
-    hostname: err.hostname,
-    address: err.address,
-    port: err.port,
-    sqlMessage: err.sqlMessage,
-    sqlState: err.sqlState,
-    fatal: err.fatal
-  };
-  logDebug(`[${label}] RAW DUMP: ${JSON.stringify(errorObj)}`);
-  return errorObj;
+console.log = (...args) => {
+  pushLog('INFO', ...args);
+  originalConsoleLog(...args);
 };
 
+console.error = (...args) => {
+  pushLog('ERR', ...args);
+  originalConsoleError(...args);
+};
+
+// --- 3. ANTI-CRASH HANDLERS ---
+// Prevent Node from exiting on unhandled errors, so the dashboard remains accessible to show the error.
+(process as any).on('uncaughtException', (err: any) => {
+  console.error('CRITICAL PROCESS ERROR (Uncaught):', err);
+  SYSTEM_IDENTITY.last_error = { type: 'uncaughtException', message: err.message, stack: err.stack };
+  SYSTEM_IDENTITY.status = "CRITICAL_FAILURE";
+});
+
+(process as any).on('unhandledRejection', (reason: any, promise: any) => {
+  console.error('CRITICAL PROMISE REJECTION:', reason);
+  SYSTEM_IDENTITY.last_error = { type: 'unhandledRejection', reason: reason };
+  SYSTEM_IDENTITY.status = "CRITICAL_FAILURE";
+});
+
+// --- LOAD ENV ---
 const envPath = path.resolve('.env');
 if (fs.existsSync(envPath)) {
-  logDebug(`[ENV] Loading local file: ${envPath}`);
+  console.log(`[ENV] Loading local file: ${envPath}`);
   dotenv.config({ path: envPath });
 } else {
-  logDebug(`[ENV] No .env file at ${envPath}. Using system-level process variables.`);
+  console.log(`[ENV] No .env file at ${envPath}. Using system-level process variables.`);
   dotenv.config(); 
 }
 
@@ -71,13 +90,20 @@ keysToVerify.forEach(k => {
   const val = process.env[k];
   if (!val) {
     SYSTEM_IDENTITY.env_check[k] = "MISSING";
-    logDebug(`[WARN] Config Key ${k} is NOT SET.`);
+    console.error(`[CONFIG] Key ${k} is NOT SET.`);
   } else {
-    SYSTEM_IDENTITY.env_check[k] = `PRESENT (${val.substring(0, 2)}***${val.substring(val.length - 1)})`;
+    SYSTEM_IDENTITY.env_check[k] = "PRESENT";
   }
 });
 
-// --- MOCK DATA FOR SIMULATION MODE ---
+// --- APP SETUP ---
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+
+// --- MOCK DATA ---
 const MOCK_CUSTOMERS = [
   {
     id: 'c1', name: 'A P NATHAN', phone: '9022484385', email: 'apnathan@email.com', address: 'Mumbai Central, MH', taxNumber: 'GSTIN99201',
@@ -107,13 +133,7 @@ const MOCK_CUSTOMERS = [
   }
 ];
 
-const app = express();
-app.use(cors());
-app.use(express.json());
-
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
-
-// CRITICAL: Hostinger Configuration Strategy with Socket Support
+// --- DB CONFIGURATION ---
 const getDbConfig = () => {
   const config: any = {
     user: process.env.DB_USER,
@@ -124,54 +144,51 @@ const getDbConfig = () => {
     queueLimit: 0,
     enableKeepAlive: true,
     keepAliveInitialDelay: 10000,
-    connectTimeout: 20000, // Extended for shared hosting latency
-    charset: 'utf8mb4', // Essential for WhatsApp Emojis/Indian Languages
-    timezone: '+05:30', // IST - Critical for financial ledger dates
-    decimalNumbers: true, // Return DECIMAL types as JS numbers (not strings)
-    multipleStatements: true // Required to execute the Master Schema file
+    connectTimeout: 20000, 
+    charset: 'utf8mb4', 
+    timezone: '+05:30', 
+    decimalNumbers: true, 
+    multipleStatements: true 
   };
 
-  // If a socket path is provided (common in enterprise cloud/Hostinger), prioritize it over TCP
   if (process.env.DB_SOCKET_PATH) {
     config.socketPath = process.env.DB_SOCKET_PATH;
-    logDebug(`[DB_CONFIG] Using Unix Socket: ${config.socketPath}`);
+    console.log(`[DB_CONFIG] Using Unix Socket: ${config.socketPath}`);
   } else {
-    // Default to IPv4 loopback to avoid Node 17+ localhost::1 issues
     config.host = process.env.DB_HOST || '127.0.0.1'; 
     config.port = Number(process.env.DB_PORT) || 3306;
-    logDebug(`[DB_CONFIG] Using TCP: ${config.host}:${config.port} (User: ${config.user})`);
+    console.log(`[DB_CONFIG] Using TCP: ${config.host}:${config.port} (User: ${config.user})`);
   }
 
   return config;
 };
 
-// Diagnostic only - does not block application boot
+// Diagnostic only
 const performNetworkScan = (host: string, port: number): Promise<string> => {
   return new Promise((resolve) => {
-    // Skip TCP scan if using socket
     if (process.env.DB_SOCKET_PATH) {
        resolve('SOCKET_MODE');
        return;
     }
 
-    logDebug(`[NET] Initiating raw TCP socket to ${host}:${port}...`);
+    console.log(`[NET] Initiating raw TCP socket to ${host}:${port}...`);
     const socket = new net.Socket();
-    socket.setTimeout(3000); // 3s timeout for raw TCP
+    socket.setTimeout(3000); 
     
     socket.on('connect', () => {
-      logDebug(`[NET] TCP Handshake SUCCESS. Port ${port} is OPEN.`);
+      console.log(`[NET] TCP Handshake SUCCESS. Port ${port} is OPEN.`);
       socket.destroy();
       resolve('OPEN');
     });
 
     socket.on('timeout', () => {
-      logDebug(`[NET] TCP Timeout. Firewall likely blocking ${host}:${port}.`);
+      console.log(`[NET] TCP Timeout. Firewall likely blocking ${host}:${port}.`);
       socket.destroy();
       resolve('TIMEOUT');
     });
 
     socket.on('error', (err) => {
-      logDebug(`[NET] TCP Error: ${err.message}`);
+      console.log(`[NET] TCP Error: ${err.message}`);
       socket.destroy();
       resolve('CLOSED');
     });
@@ -182,26 +199,22 @@ const performNetworkScan = (host: string, port: number): Promise<string> => {
 
 let pool: mysql.Pool;
 
-/**
- * MASTER FILE SYNC ENGINE
- * Reads 'database.sql' but cleans it to prevent Hostinger permission errors.
- */
 const initializeSchema = async () => {
-  logDebug("[SCHEMA] Starting Master File Sync...");
+  console.log("[SCHEMA] Starting Master File Sync...");
   SYSTEM_IDENTITY.network_trace.schema_status = 'READING_FILE';
   
   const schemaPath = path.resolve(__dirname, 'database.sql');
   
   if (!fs.existsSync(schemaPath)) {
-     logDebug(`[SCHEMA] CRITICAL: database.sql not found at ${schemaPath}`);
+     console.error(`[SCHEMA] CRITICAL: database.sql not found at ${schemaPath}`);
      throw new Error("SCHEMA_FILE_MISSING");
   }
 
   let sqlContent = fs.readFileSync(schemaPath, 'utf-8');
   
-  // --- ROBUST SQL SANITIZATION ---
-  sqlContent = sqlContent.replace(/--.*$/gm, ''); // remove single line comments
-  sqlContent = sqlContent.replace(/\/\*[\s\S]*?\*\//g, ''); // remove block comments
+  // SANITIZATION
+  sqlContent = sqlContent.replace(/--.*$/gm, ''); 
+  sqlContent = sqlContent.replace(/\/\*[\s\S]*?\*\//g, ''); 
   sqlContent = sqlContent.replace(/CREATE DATABASE.*?;/gi, '');
   sqlContent = sqlContent.replace(/USE .*?;/gi, '');
   sqlContent = sqlContent.replace(/^\s*[\r\n]/gm, '');
@@ -214,35 +227,32 @@ const initializeSchema = async () => {
       .map(s => s.trim())
       .filter(s => s.length > 0);
 
-    logDebug(`[SCHEMA] Found ${statements.length} SQL statements to verify.`);
+    console.log(`[SCHEMA] Found ${statements.length} SQL statements to verify.`);
 
     for (const statement of statements) {
        try {
           await pool.query(statement);
        } catch (err: any) {
-          // Ignore "Table already exists" errors silently
           if (err.code !== 'ER_TABLE_EXISTS_ERROR') {
-             logDebug(`[SCHEMA] Warning on statement: ${statement.substring(0, 30)}... -> ${err.message}`);
+             console.log(`[SCHEMA] Warning: ${err.message}`);
           }
        }
     }
     
-    logDebug("[SCHEMA] Master Sync Complete. Memory Structure Active.");
+    console.log("[SCHEMA] Master Sync Complete.");
     SYSTEM_IDENTITY.network_trace.schema_status = 'SYNCED';
   } catch (err: any) {
-    logDebug(`[SCHEMA] Sync Failed: ${err.message}`);
-    logRawError("SCHEMA_FAIL", err);
+    console.error(`[SCHEMA] Sync Failed: ${err.message}`);
     SYSTEM_IDENTITY.network_trace.schema_status = `FAILED (${err.code})`;
     throw err;
   }
 };
 
 const bootSystem = async () => {
-  logDebug("Initializing Recovery Engine...");
+  console.log("Initializing Recovery Engine...");
   
-  // HOSTINGER CONFIGURATION CHECK
   if (!process.env.DB_USER) {
-    logDebug("[WARN] Database user incomplete. Booting directly to SIMULATION MODE.");
+    console.warn("[WARN] Database user incomplete. Booting directly to SIMULATION MODE.");
     activateSimulationMode({ code: 'MISSING_CREDENTIALS', message: 'Env vars not set' });
     return;
   }
@@ -250,18 +260,17 @@ const bootSystem = async () => {
   const targetHost = process.env.DB_HOST || '127.0.0.1';
   SYSTEM_IDENTITY.network_trace.target_host = targetHost;
   
-  // Perform TCP check only if we are using TCP
   if (!process.env.DB_SOCKET_PATH) {
      const tcpStatus = await performNetworkScan(targetHost, Number(process.env.DB_PORT) || 3306);
      SYSTEM_IDENTITY.network_trace.tcp_port_3306 = tcpStatus;
   }
 
   try {
-    logDebug(`[DB] Attempting MySQL Protocol Handshake...`);
+    console.log(`[DB] Attempting MySQL Protocol Handshake...`);
     const tempPool = mysql.createPool(getDbConfig());
     
     const conn = await tempPool.getConnection();
-    logDebug(`[DB] Handshake SUCCESS: Valid Credentials Verified.`);
+    console.log(`[DB] Handshake SUCCESS: Valid Credentials Verified.`);
     
     SYSTEM_IDENTITY.network_trace.auth_status = 'SUCCESS';
     pool = tempPool;
@@ -274,15 +283,15 @@ const bootSystem = async () => {
 
     await introspectVault();
   } catch (err: any) {
-    const rawErr = logRawError("BOOT_FATAL", err);
+    console.error(`[DB] Handshake FAILED: ${JSON.stringify(err)}`);
     SYSTEM_IDENTITY.network_trace.auth_status = `FAILED (${err.code})`;
-    
-    // Enrich error for frontend
     SYSTEM_IDENTITY.last_error = {
-        ...rawErr,
-        hint: err.code === 'ECONNREFUSED' ? "Database is refusing TCP. Check if DB_HOST is 127.0.0.1 and DB_PORT is 3306." :
-              err.code === 'ER_ACCESS_DENIED_ERROR' ? "Invalid Username/Password. Check .env DB_USER and DB_PASSWORD." :
-              err.code === 'ENOTFOUND' ? "Hostname cannot be resolved. Check DB_HOST." : "Check raw logs."
+        message: err.message,
+        code: err.code,
+        syscall: err.syscall,
+        hostname: err.hostname,
+        fatal: err.fatal,
+        hint: "Check Handshake Terminal in System Vault."
     };
     activateSimulationMode(SYSTEM_IDENTITY.last_error);
   }
@@ -292,7 +301,7 @@ const activateSimulationMode = (error: any) => {
     SYSTEM_IDENTITY.status = "SIMULATION_ACTIVE";
     SYSTEM_IDENTITY.db_health = "MOCK_CORE";
     SYSTEM_IDENTITY.last_error = error;
-    logDebug("CRITICAL: Database unreachable. Activating Fault-Tolerant Simulation Core.");
+    console.log("CRITICAL: Activating Fault-Tolerant Simulation Core.");
     
     SYSTEM_IDENTITY.database_structure = [
         { Field: 'id', Type: 'varchar(50)', Null: 'NO', Key: 'PRI', Default: null },
@@ -303,51 +312,57 @@ const activateSimulationMode = (error: any) => {
 
 const introspectVault = async () => {
   try {
-    logDebug("Querying Memory Vault (SQL Schema)...");
+    console.log("Querying Memory Vault (SQL Schema)...");
     const [tables]: any = await pool.execute('SHOW TABLES');
     const tableList = tables.map((t: any) => Object.values(t)[0]);
     
     if (tableList.includes('customers')) {
       const [columns]: any = await pool.execute('DESCRIBE customers');
       SYSTEM_IDENTITY.database_structure = columns;
-      logDebug("Table 'customers' successfully mapped to Memory Vault.");
-    } else {
-      logDebug("WARNING: Table 'customers' not found after migration.");
+      console.log("Table 'customers' successfully mapped.");
     }
   } catch (err: any) {
-    logRawError("INTROSPECT_FAIL", err);
+    console.error(`INTROSPECT_FAIL: ${err.message}`);
   }
 };
 
+// Start boot process
 bootSystem();
 
-app.get('/api/system/health', (req, res) => res.json(SYSTEM_IDENTITY));
+// --- ROUTES ---
+
+// Health Check - ALWAYS returns 200 with logs, even if DB is down.
+app.get('/api/system/health', (req, res) => {
+  res.json(SYSTEM_IDENTITY);
+});
 
 app.get('/api/customers', async (req: Request, res: Response) => {
   if (SYSTEM_IDENTITY.db_health === "MOCK_CORE") {
      return res.json(MOCK_CUSTOMERS);
   }
   if (SYSTEM_IDENTITY.db_health !== "CONNECTED") {
-    return res.status(503).json({ error: "DATABASE_OFFLINE", details: SYSTEM_IDENTITY.last_error });
+    // Return 200 with mock data to keep UI alive, but warn in logs
+    console.warn("Serving Mock Data due to DB Failure.");
+    return res.json(MOCK_CUSTOMERS); 
   }
   try {
     const [rows]: any = await pool.execute('SELECT * FROM customers ORDER BY name ASC');
     res.json(rows);
   } catch (err: any) {
+    console.error(`QUERY_FAILED: ${err.message}`);
     res.status(500).json({ error: "QUERY_FAILED", details: err.message });
   }
 });
 
 app.get('/api/ledger/global', async (req: Request, res: Response) => {
-  if (SYSTEM_IDENTITY.db_health === "MOCK_CORE") {
+  if (SYSTEM_IDENTITY.db_health !== "CONNECTED") {
      return res.json({
         data: [
-           { id: 'sim_t1', type: 'debit', unit: 'money', amount: 41200, method: 'rtgs', description: 'Simulated Entry', date: '2025-12-14', customerName: 'A P NATHAN', upc: 'APN-101' }
+           { id: 'sim_t1', type: 'debit', unit: 'money', amount: 41200, method: 'rtgs', description: 'Simulated Entry (DB Offline)', date: '2025-12-14', customerName: 'A P NATHAN', upc: 'APN-101' }
         ],
         meta: { total: 1, page: 1, limit: 50, totalPages: 1 }
      });
   }
-  if (SYSTEM_IDENTITY.db_health !== "CONNECTED") return res.status(503).json({ error: "DB_OFFLINE" });
   try {
     const page = Number(req.query.page) || 1;
     const limit = Number(req.query.limit) || 50;

@@ -39,12 +39,16 @@ export const useAppStore = () => {
   const [aiStrategy, setAiStrategy] = useState<AiStrategy | null>(null);
 
   const addLog = useCallback((msg: string) => {
-    setSystemLogs(prev => [`[LOG] ${msg}`, ...prev].slice(0, 100));
+    // Prevent duplicate adjacent logs for cleaner UI
+    setSystemLogs(prev => {
+       if (prev.length > 0 && prev[0] === msg) return prev;
+       return [msg, ...prev].slice(0, 200);
+    });
   }, []);
 
   const syncLedger = useCallback(async () => {
     if (!user) return;
-    addLog("Requesting Global Trace...");
+    
     try {
       const healthRes = await axios.get('/api/system/health');
       const health = healthRes.data;
@@ -53,16 +57,15 @@ export const useAppStore = () => {
       if (health.env_check) setEnvCheck(health.env_check);
       if (health.last_error) setLastError(health.last_error);
       
-      if (health.debug_logs) {
-        health.debug_logs.forEach((log: string) => addLog(`REMOTE: ${log}`));
+      // Update logs from server
+      if (health.debug_logs && Array.isArray(health.debug_logs)) {
+         setSystemLogs(health.debug_logs); // Direct sync from server source of truth
       }
 
       if (health.db_health === 'MOCK_CORE') {
          setDbStatus('SIMULATION');
-         addLog("WARNING: Running in Fault-Tolerant Simulation Mode.");
       } else if (health.db_health !== 'CONNECTED') {
          setDbStatus('OFFLINE');
-         addLog(`CRITICAL: Handshake failed. Status: ${health.db_health}`);
          return;
       } else {
          setDbStatus('CONNECTED');
@@ -71,24 +74,27 @@ export const useAppStore = () => {
       // Fetch customers (works for both CONNECTED and MOCK_CORE)
       const res = await axios.get('/api/customers');
       if (res.data && Array.isArray(res.data)) {
-        // If simulation, merge with initial data to keep frontend rich
         const mergedData = health.db_health === 'MOCK_CORE' 
             ? INITIAL_CUSTOMERS 
             : res.data;
             
         setCustomers(mergedData.length > 0 ? mergedData : INITIAL_CUSTOMERS);
-        addLog(`SYNC_OK: Data Cluster Verified.`);
       }
     } catch (e: any) {
       const detail = e.response?.data?.details || e.message;
-      addLog(`TERMINAL_ERROR: ${detail}`);
+      addLog(`[FRONTEND_ERR] Failed to sync: ${detail}`);
       setDbStatus('OFFLINE');
     }
   }, [user, addLog]);
 
   useEffect(() => {
-    if (user) syncLedger();
-  }, [user, syncLedger]);
+    if (user) {
+        syncLedger();
+        // Poll for logs/health every 5 seconds if in error state, else 30s
+        const interval = setInterval(syncLedger, dbStatus !== 'CONNECTED' ? 5000 : 30000);
+        return () => clearInterval(interval);
+    }
+  }, [user, syncLedger, dbStatus]);
 
   const activeCustomer = useMemo(() => {
     if (!selectedId) return null;

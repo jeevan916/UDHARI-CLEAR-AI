@@ -35,27 +35,27 @@ export const SystemVaultView: React.FC<Props> = ({ dbStatus, dbStructure, system
                Exposing raw kernel telemetry, environment verification, and database structure. 
                Used for diagnosing MySQL handshakes and DDL validation based on your .env configuration.
             </p>
-            {dbStatus === 'SIMULATION' && (
-               <div className="mt-6 flex flex-col gap-4">
-                  <div className="flex items-center gap-3 bg-amber-900/50 border border-amber-700/50 p-4 rounded-2xl w-fit">
-                     <AlertTriangle className="text-amber-400" size={20}/>
-                     <div>
-                        <p className="text-xs font-black text-amber-100 uppercase">Fault-Tolerant Simulation Active</p>
-                        <p className="text-[10px] text-amber-200/60">Database connection failed. Serving high-fidelity mock data to maintain dashboard availability.</p>
-                     </div>
+            
+            {/* RAW ERROR BLACK BOX - ALWAYS SHOW IF EXISTS */}
+            {lastError && (
+                <div className="mt-8 p-6 bg-black rounded-2xl border-2 border-rose-500/50 w-full max-w-4xl shadow-2xl relative overflow-hidden">
+                    <div className="absolute top-0 right-0 p-2 bg-rose-600 text-white text-[9px] font-black uppercase">Critical Failure Dump</div>
+                    <p className="text-[10px] font-black text-rose-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                        <Code size={14}/> Raw Error Object (Copy this for debugging)
+                    </p>
+                    <pre className="font-mono text-[11px] text-rose-200/90 overflow-x-auto whitespace-pre-wrap leading-relaxed select-text p-2">
+                        {JSON.stringify(lastError, null, 2)}
+                    </pre>
+                </div>
+            )}
+
+            {dbStatus === 'SIMULATION' && !lastError && (
+               <div className="mt-6 flex items-center gap-3 bg-amber-900/50 border border-amber-700/50 p-4 rounded-2xl w-fit">
+                  <AlertTriangle className="text-amber-400" size={20}/>
+                  <div>
+                     <p className="text-xs font-black text-amber-100 uppercase">Fault-Tolerant Simulation Active</p>
+                     <p className="text-[10px] text-amber-200/60">Database connection failed. Serving high-fidelity mock data to maintain dashboard availability.</p>
                   </div>
-                  
-                  {/* RAW ERROR DUMP */}
-                  {lastError && (
-                     <div className="p-4 bg-black/40 rounded-2xl border border-amber-900/50 w-full max-w-3xl">
-                        <p className="text-[10px] font-black text-rose-400 uppercase tracking-widest mb-2 flex items-center gap-2">
-                           <Code size={12}/> Raw Error Dump (System Core)
-                        </p>
-                        <pre className="font-mono text-[10px] text-rose-200/80 overflow-x-auto whitespace-pre-wrap leading-relaxed select-text">
-                           {JSON.stringify(lastError, null, 2)}
-                        </pre>
-                     </div>
-                  )}
                </div>
             )}
          </div>
@@ -123,29 +123,6 @@ export const SystemVaultView: React.FC<Props> = ({ dbStatus, dbStructure, system
                      <span className="text-[9px] font-black uppercase text-slate-400">MySQL DB</span>
                   </div>
                </div>
-
-               {/* Remediation Tips */}
-               {(isTcpTimeout || isAuthFailed) && (
-                  <div className="mt-8 p-4 bg-amber-50 border border-amber-100 rounded-2xl">
-                     <h4 className="text-[10px] font-black uppercase text-amber-600 mb-2 flex items-center gap-2">
-                        <AlertCircle size={12}/> Troubleshooting Action Plan
-                     </h4>
-                     <ul className="space-y-2">
-                        {isTcpTimeout && (
-                           <li className="text-[10px] text-slate-600 font-medium flex gap-2">
-                              <span className="text-amber-500">•</span>
-                              <span><strong>Firewall / Network:</strong> The connection timed out. Ensure your server IP is whitelisted on the remote database firewall.</span>
-                           </li>
-                        )}
-                        {isAuthFailed && (
-                           <li className="text-[10px] text-slate-600 font-medium flex gap-2">
-                              <span className="text-amber-500">•</span>
-                              <span><strong>Privileges:</strong> Access Denied. Verify username/password in .env and ensure the user has permissions to access database <code>{envCheck['DB_NAME']?.includes('***') ? 'configured DB' : 'unknown'}</code> from this host.</span>
-                           </li>
-                        )}
-                     </ul>
-                  </div>
-               )}
             </div>
 
             {/* Environment Audit */}
@@ -213,7 +190,7 @@ export const SystemVaultView: React.FC<Props> = ({ dbStatus, dbStructure, system
             </div>
          </div>
 
-         {/* Right: Raw Connection Logs */}
+         {/* Right: Raw Connection Logs (UNFILTERED) */}
          <div className="lg:col-span-5 h-full min-h-[650px] relative group">
             <div className="bg-[#010409] h-full rounded-[4rem] border border-white/5 shadow-2xl flex flex-col overflow-hidden font-mono relative">
                <div className="bg-white/5 px-10 py-6 border-b border-white/5 flex justify-between items-center shrink-0 backdrop-blur-2xl">
@@ -221,21 +198,22 @@ export const SystemVaultView: React.FC<Props> = ({ dbStatus, dbStructure, system
                      <Terminal size={20} className="text-emerald-500 animate-pulse" />
                      <div>
                         <span className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-300">Handshake Terminal</span>
-                        <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest mt-0.5">Raw Kernel Event Stream</p>
+                        <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest mt-0.5">Live Stdout/Stderr Stream</p>
                      </div>
                   </div>
                </div>
                
                <div className="p-10 flex-1 overflow-y-auto custom-scrollbar text-[10px] leading-relaxed space-y-2 bg-black/20">
-                  {systemLogs.filter(l => l.includes('REMOTE:') || l.includes('CRITICAL:') || l.includes('TERMINAL_ERROR:') || l.includes('WARNING:') || l.includes('[NET]') || l.includes('[DB]') || l.includes('RAW DUMP')).map((log, i) => (
+                  {/* UNFILTERED LOGS: Showing everything to debug the issue */}
+                  {systemLogs.map((log, i) => (
                      <div key={i} className="flex gap-4 p-1 rounded transition-colors hover:bg-white/5">
                         <span className={`break-all font-bold ${
-                           log.includes('FAILED') || log.includes('CRITICAL') || log.includes('ERR') || log.includes('Timeout') ? 'text-rose-400' : 
+                           log.includes('ERR') || log.includes('FAIL') || log.includes('CRITICAL') || log.includes('Timeout') || log.includes('error') ? 'text-rose-400' : 
                            log.includes('SUCCESS') || log.includes('CONNECTED') || log.includes('OK') || log.includes('OPEN') ? 'text-emerald-400' : 
                            log.includes('WARNING') || log.includes('SIMULATION') ? 'text-amber-400' :
                            'text-slate-400'
                         }`}>
-                           {log.replace('REMOTE: ', '').replace('TERMINAL_ERROR: ', 'FATAL: ')}
+                           {log}
                         </span>
                      </div>
                   ))}
