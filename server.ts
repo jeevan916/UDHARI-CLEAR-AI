@@ -16,6 +16,7 @@ const __dirname = path.dirname(__filename);
 const SYSTEM_IDENTITY = {
   node_id: "HOSTINGER_CLOUD_PRO_U477", // Updated to match hosting username prefix
   host_ip: "72.61.175.20",
+  node_version: (process as any).version,
   environment: process.env.NODE_ENV || "production",
   version: "8.1.0-ENTERPRISE-CORE",
   status: "BOOTING",
@@ -267,6 +268,7 @@ const initializeSchema = async () => {
 
 const bootSystem = async () => {
   console.log("Initializing Hostinger Enterprise Recovery Engine...");
+  console.log(`[SYSTEM] Runtime: Node ${(process as any).version}`);
   
   // Log authentication overrides for debugging
   console.log(`[AUTH] Env Admin: ${process.env.ADMIN_EMAIL || 'DEFAULT_USED'}`);
