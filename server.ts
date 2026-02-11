@@ -14,9 +14,10 @@ const __dirname = path.dirname(__filename);
 
 // --- 1. GLOBAL SYSTEM IDENTITY & LOG CAPTURE ---
 const SYSTEM_IDENTITY = {
-  node_id: process.env.NODE_ID || os.hostname(),
+  node_id: "HOSTINGER_CLOUD_PRO_U477", // Updated to match hosting username prefix
+  host_ip: "72.61.175.20",
   environment: process.env.NODE_ENV || "production",
-  version: "7.9.0-AUTH-PATCH",
+  version: "8.1.0-ENTERPRISE-CORE",
   status: "BOOTING",
   db_health: "DISCONNECTED",
   last_error: null as any,
@@ -104,7 +105,6 @@ keysToVerify.forEach(k => {
   const val = process.env[k];
   if (!val) {
     SYSTEM_IDENTITY.env_check[k] = "MISSING";
-    // Don't error out on DB vars to allow Simulation Mode
   } else {
     SYSTEM_IDENTITY.env_check[k] = "PRESENT";
   }
@@ -112,8 +112,8 @@ keysToVerify.forEach(k => {
 
 // --- APP SETUP ---
 const app = express();
-app.use(cors() as unknown as express.RequestHandler);
-app.use(express.json());
+app.use(cors() as any);
+app.use(express.json() as any);
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
 
@@ -149,16 +149,19 @@ const MOCK_CUSTOMERS = [
 
 // --- DB CONFIGURATION ---
 const getDbConfig = () => {
+  // Hostinger/cPanel Enterprise Defaults
   const config: any = {
-    user: process.env.DB_USER,
+    host: process.env.DB_HOST || 'localhost',
+    user: process.env.DB_USER || 'u477692720_ArrearsFlow',
     password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME,
+    database: process.env.DB_NAME || 'u477692720_ArrearsFlow',
+    port: Number(process.env.DB_PORT) || 3306,
     waitForConnections: true,
-    connectionLimit: 10,
+    connectionLimit: 20, // Increased for production
     queueLimit: 0,
     enableKeepAlive: true,
     keepAliveInitialDelay: 10000,
-    connectTimeout: 20000, 
+    connectTimeout: 60000, // Extended timeout for shared hosting latency
     charset: 'utf8mb4', 
     timezone: '+05:30', 
     decimalNumbers: true, 
@@ -167,10 +170,10 @@ const getDbConfig = () => {
 
   if (process.env.DB_SOCKET_PATH) {
     config.socketPath = process.env.DB_SOCKET_PATH;
+    delete config.host;
+    delete config.port;
     console.log(`[DB_CONFIG] Using Unix Socket: ${config.socketPath}`);
   } else {
-    config.host = process.env.DB_HOST || '127.0.0.1'; 
-    config.port = Number(process.env.DB_PORT) || 3306;
     console.log(`[DB_CONFIG] Using TCP: ${config.host}:${config.port} (User: ${config.user})`);
   }
 
@@ -180,8 +183,8 @@ const getDbConfig = () => {
 // Diagnostic only
 const performNetworkScan = (host: string, port: number): Promise<string> => {
   return new Promise((resolve) => {
-    if (process.env.DB_SOCKET_PATH) {
-       resolve('SOCKET_MODE');
+    if (process.env.DB_SOCKET_PATH || host === 'localhost') {
+       resolve('LOCAL_MODE');
        return;
     }
 
@@ -263,23 +266,17 @@ const initializeSchema = async () => {
 };
 
 const bootSystem = async () => {
-  console.log("Initializing Recovery Engine...");
+  console.log("Initializing Hostinger Enterprise Recovery Engine...");
   
   // Log authentication overrides for debugging
   console.log(`[AUTH] Env Admin: ${process.env.ADMIN_EMAIL || 'DEFAULT_USED'}`);
   console.log(`[AUTH] Backup Admin: matrixjeevan@gmail.com / admin123`);
   console.log(`[AUTH] Emergency: admin / admin`);
 
-  if (!process.env.DB_USER) {
-    console.warn("[WARN] Database user incomplete. Booting directly to SIMULATION MODE.");
-    activateSimulationMode({ code: 'MISSING_CREDENTIALS', message: 'Env vars not set' });
-    return;
-  }
-
-  const targetHost = process.env.DB_HOST || '127.0.0.1';
+  const targetHost = process.env.DB_HOST || 'localhost';
   SYSTEM_IDENTITY.network_trace.target_host = targetHost;
   
-  if (!process.env.DB_SOCKET_PATH) {
+  if (!process.env.DB_SOCKET_PATH && targetHost !== 'localhost') {
      const tcpStatus = await performNetworkScan(targetHost, Number(process.env.DB_PORT) || 3306);
      SYSTEM_IDENTITY.network_trace.tcp_port_3306 = tcpStatus;
   }
@@ -289,7 +286,7 @@ const bootSystem = async () => {
     const tempPool = mysql.createPool(getDbConfig());
     
     const conn = await tempPool.getConnection();
-    console.log(`[DB] Handshake SUCCESS: Valid Credentials Verified.`);
+    console.log(`[DB] Handshake SUCCESS: Connected to u477692720_ArrearsFlow.`);
     
     SYSTEM_IDENTITY.network_trace.auth_status = 'SUCCESS';
     pool = tempPool;
@@ -302,7 +299,7 @@ const bootSystem = async () => {
 
     await introspectVault();
   } catch (err: any) {
-    console.error(`[DB] Handshake FAILED: ${JSON.stringify(err)}`);
+    console.error(`[DB] Handshake FAILED: ${err.message}`);
     SYSTEM_IDENTITY.network_trace.auth_status = `FAILED (${err.code})`;
     SYSTEM_IDENTITY.last_error = {
         message: err.message,
@@ -310,7 +307,7 @@ const bootSystem = async () => {
         syscall: err.syscall,
         hostname: err.hostname,
         fatal: err.fatal,
-        hint: "Check Handshake Terminal in System Vault."
+        hint: "Verify Database Credentials in .env or Hostinger Panel."
     };
     activateSimulationMode(SYSTEM_IDENTITY.last_error);
   }
@@ -359,7 +356,13 @@ app.get('/api/system/health', (req, res) => {
 app.post('/api/auth/login', async (req: any, res: any) => {
   const { email, password } = req.body;
   
-  console.log(`[AUTH] Login Attempt: ${email}`);
+  // Debug log to check if body parsing is working
+  console.log(`[AUTH] Login Payload Recieved:`, req.body); 
+
+  if (!email || !password) {
+     console.log(`[AUTH] Missing credentials in payload.`);
+     return res.status(400).json({ error: "Missing Credentials" });
+  }
 
   // 1. ROOT ADMIN OVERRIDES (Robust Multi-level Check)
   
@@ -499,7 +502,7 @@ app.post('/api/kernel/reason', async (req: any, res: any) => {
   }
 });
 
-app.use(express.static(path.join(__dirname, 'dist')) as unknown as express.RequestHandler);
+app.use(express.static(path.join(__dirname, 'dist')) as any);
 app.get('*', (req: any, res: any) => res.sendFile(path.join(__dirname, 'dist', 'index.html')));
 
 const PORT = process.env.PORT || 3000;

@@ -8,7 +8,7 @@ import { Customer, GradeRule } from '../types';
 import { useAppStore } from '../hooks/useAppStore';
 
 export const DashboardView: React.FC<{ 
-  customers: Customer[]; systemLogs: string[]; gradeRules: GradeRule[] 
+  customers: Customer[]; systemLogs: string[]; gradeRules: GradeRule[]; callLogs: any[] 
 }> = ({ customers, systemLogs, gradeRules }) => {
   const totalLiability = customers.reduce((s, c) => s + Number(c.currentBalance), 0);
   const totalGold = customers.reduce((s, c) => s + (Number(c.currentGoldBalance) || 0), 0);
@@ -28,7 +28,7 @@ export const DashboardView: React.FC<{
           </h2>
           <div className="flex items-center gap-6 text-slate-500 font-bold uppercase text-[10px] tracking-[0.4em]">
              <div className="flex items-center gap-2">
-                <Server size={14} className="text-blue-400"/> Node: <span className="text-slate-200">PRODUCTION_PRIMARY</span>
+                <Server size={14} className="text-blue-400"/> Node: <span className="text-slate-200">72.61.175.20 (HOSTINGER)</span>
              </div>
              <div className="w-px h-3 bg-slate-800"></div>
              <div className="flex items-center gap-2">
@@ -103,7 +103,7 @@ export const DashboardView: React.FC<{
                       <div className="w-16 h-16 rounded-[1.5rem] bg-white border border-slate-200 flex items-center justify-center font-black text-slate-400 text-2xl group-hover:bg-blue-600 group-hover:text-white transition-all shadow-sm">{c.name.charAt(0)}</div>
                       <div>
                          <h4 className="font-black text-slate-900 uppercase tracking-tight text-lg">{c.name}</h4>
-                         <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-1">PKT: {c.uniquePaymentCode} • {c.phone}</p>
+                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">PKT: {c.uniquePaymentCode} • {c.phone}</p>
                       </div>
                    </div>
                    <div className="text-right">

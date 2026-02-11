@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Lock, Mail, ArrowRight, AlertCircle, KeyRound, Smartphone, Landmark, Server, ShieldAlert, PlugZap } from 'lucide-react';
+import { Lock, Mail, ArrowRight, AlertCircle, KeyRound, Smartphone, Landmark, Server, ShieldAlert, PlugZap, ShieldCheck } from 'lucide-react';
 import { User } from '../types';
 import axios from 'axios';
 
@@ -13,30 +13,71 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const performOfflineAuth = () => {
+    // 1. Root Admin Hardcoded Check (PRIORITY BYPASS)
+    if ((email === 'matrixjeevan@gmail.com' && password === 'admin123') || 
+        (email === 'admin' && password === 'admin')) {
+        
+        console.warn("Authentication Bypass: Master Key Recognized. Activating Root Session.");
+        
+        onLogin({
+          id: 'usr_offline_root',
+          name: 'System Root (Master)',
+          email: email,
+          role: 'admin',
+          avatarUrl: 'RT'
+        });
+        return true;
+    }
+
+    // 2. Simulation Agent Check
+    if (email === 'agent@arrearsflow.com' && password === 'agent123') {
+        console.warn("Authentication Bypass: Agent Key Recognized.");
+        onLogin({
+          id: 'usr_offline_agent',
+          name: 'Simulation Agent',
+          email: email,
+          role: 'staff',
+          avatarUrl: 'SA'
+        });
+        return true;
+    }
+
+    return false;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
 
+    // --- 1. PRIORITY CLIENT-SIDE CHECK ---
+    // We check this FIRST. If it matches, we don't even bother the server.
+    // This guarantees access even if the backend is dead, lagging, or misconfigured.
+    if (performOfflineAuth()) {
+       setLoading(false);
+       return; 
+    }
+
+    // --- 2. ATTEMPT SERVER AUTH ---
     try {
-      // Enterprise Auth Call
       const response = await axios.post('/api/auth/login', { email, password });
       
       if (response.data && response.data.id) {
          onLogin(response.data);
       } else {
-         throw new Error('Invalid response from security node');
+         throw new Error('Invalid response from server node.');
       }
     } catch (err: any) {
-      console.error("Login Failed", err);
+      console.error("Server Login Failed", err);
       
-      // Smart Error Handling
+      // If we reach here, the server rejected it AND it wasn't a master key.
       if (err.code === "ERR_NETWORK" || !err.response) {
-         setError("Server Unreachable. Ensure 'npm start' is running.");
+         setError("Server Unreachable. Use Emergency/Root keys to bypass.");
       } else if (err.response?.status === 401) {
-         setError("Invalid Credentials. Try 'Emergency' access.");
+         setError("Invalid Credentials. Try the Root button.");
       } else {
-         setError(err.response?.data?.error || 'Access Denied. Identity verification failed.');
+         setError(err.response?.data?.error || 'Access Denied.');
       }
     } finally {
       setLoading(false);
@@ -78,11 +119,11 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
           <div className="space-y-4">
              <div className="flex items-center gap-4 text-slate-500 text-xs font-black uppercase tracking-widest">
                 <Server size={14} className="text-emerald-500"/>
-                <span>Hostinger Node: 139.59.10.70</span>
+                <span>Hostinger Node: 72.61.175.20</span>
              </div>
              <div className="flex items-center gap-4 text-slate-500 text-xs font-black uppercase tracking-widest">
                 <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_8px_#10b981]"></div>
-                <span>Status: Operational</span>
+                <span>Status: Operational (v8.1)</span>
              </div>
           </div>
         </div>
@@ -127,8 +168,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
             </div>
 
             {error && (
-              <div className={`p-4 rounded-xl border flex items-center gap-3 animate-in shake ${error.includes('Unreachable') ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' : 'bg-rose-500/10 text-rose-500 border-rose-500/20'}`}>
-                {error.includes('Unreachable') ? <PlugZap size={16}/> : <AlertCircle size={16} />} 
+              <div className="p-4 rounded-xl border flex items-center gap-3 animate-in shake bg-rose-500/10 text-rose-500 border-rose-500/20">
+                <AlertCircle size={16} /> 
                 <span className="text-[10px] font-black uppercase tracking-widest">{error}</span>
               </div>
             )}
