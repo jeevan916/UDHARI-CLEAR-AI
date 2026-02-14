@@ -28,7 +28,7 @@ export const DashboardView: React.FC<{
           </h2>
           <div className="flex items-center gap-6 text-slate-500 font-bold uppercase text-[10px] tracking-[0.4em]">
              <div className="flex items-center gap-2">
-                <Server size={14} className="text-blue-400"/> Node: <span className="text-slate-200">72.61.175.20 (HOSTINGER)</span>
+                <Server size={14} className="text-blue-400"/> Node: <span className="text-slate-200">PRIMARY_CORE</span>
              </div>
              <div className="w-px h-3 bg-slate-800"></div>
              <div className="flex items-center gap-2">

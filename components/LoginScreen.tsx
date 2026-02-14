@@ -109,7 +109,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
             <div className="w-16 h-16 bg-white/5 backdrop-blur-md rounded-2xl flex items-center justify-center mb-8 border border-white/10 shadow-2xl">
               <Landmark className="text-amber-500" size={32} />
             </div>
-            <h1 className="text-5xl font-black text-white tracking-tighter mb-4">Sanghavi <span className="text-amber-500 italic font-medium">Jewellers</span></h1>
+            <h1 className="text-5xl font-black text-white uppercase tracking-tighter mb-4">Sanghavi <span className="text-amber-500 italic font-medium">Jewellers</span></h1>
             <p className="text-slate-400 text-lg max-w-md leading-relaxed font-medium">
               Enterprise Recovery Platform <br/>
               <span className="text-[10px] font-black uppercase tracking-[0.5em] text-blue-500">Secure Production Environment</span>
@@ -119,11 +119,11 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
           <div className="space-y-4">
              <div className="flex items-center gap-4 text-slate-500 text-xs font-black uppercase tracking-widest">
                 <Server size={14} className="text-emerald-500"/>
-                <span>Hostinger Node: 72.61.175.20</span>
+                <span>System Node: Active</span>
              </div>
              <div className="flex items-center gap-4 text-slate-500 text-xs font-black uppercase tracking-widest">
                 <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_8px_#10b981]"></div>
-                <span>Status: Operational (v8.1)</span>
+                <span>Status: Operational (v8.4)</span>
              </div>
           </div>
         </div>
