@@ -46,6 +46,7 @@ console.error = (...args) => { pushLog('ERR', ...args); (process as any).stderr.
 const loadConfiguration = () => {
   const cwd = (process as any).cwd();
   const searchPaths = [
+    path.resolve(cwd, 'public_html/.builds/config/.env'),
     path.resolve(cwd, '.env'),
     path.resolve(cwd, '..', '.env'),
     path.resolve(__dirname, '.env'),
