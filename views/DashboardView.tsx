@@ -8,8 +8,8 @@ import { Customer, GradeRule } from '../types';
 import { useAppStore } from '../hooks/useAppStore';
 
 export const DashboardView: React.FC<{ 
-  customers: Customer[]; systemLogs: string[]; gradeRules: GradeRule[]; callLogs: any[] 
-}> = ({ customers, systemLogs, gradeRules }) => {
+  customers: Customer[]; systemLogs: string[]; gradeRules: GradeRule[]; callLogs: any[]; isAdmin: boolean;
+}> = ({ customers, systemLogs, gradeRules, isAdmin }) => {
   const totalLiability = customers.reduce((s, c) => s + Number(c.currentBalance), 0);
   const totalGold = customers.reduce((s, c) => s + (Number(c.currentGoldBalance) || 0), 0);
 

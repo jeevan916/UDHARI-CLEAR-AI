@@ -141,7 +141,7 @@ const App: React.FC = () => {
             )}
 
             {state.activeView === 'transactions' && (
-              <TransactionsView customers={state.customers} isAdmin={state.isAdmin} />
+              <TransactionsView isAdmin={state.isAdmin} />
             )}
             
             {state.activeView === 'payment-logs' && (

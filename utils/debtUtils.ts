@@ -52,17 +52,28 @@ export const analyzeCustomerBehavior = (customer: Customer, rules: GradeRule[], 
 
   // 3. Spam Protection
   let isSpamBlocked = false;
+  let cooldownRemainingLabel = "";
   if (lastContact) {
      const hoursPassed = (now.getTime() - new Date(lastContact).getTime()) / 3600000;
      const threshold = ruleToHours(matchedRule);
-     if (hoursPassed < threshold) isSpamBlocked = true;
+     if (hoursPassed < threshold) {
+        isSpamBlocked = true;
+        const remaining = threshold - hoursPassed;
+        cooldownRemainingLabel = remaining > 24 
+           ? `${Math.ceil(remaining/24)}d left` 
+           : `${Math.ceil(remaining)}h left`;
+     }
   }
+
+  const actionColor = matchedRule.id === 'A' ? 'emerald' : matchedRule.id === 'B' ? 'blue' : matchedRule.id === 'C' ? 'amber' : 'rose';
 
   return {
     score: Math.max(0, 100 - (daysSincePayment / 2) - (customer.currentBalance / 10000)),
     calculatedGrade: matchedRule.id,
     daysInactive: daysSincePayment,
     isSpamBlocked,
+    cooldownRemainingLabel,
+    actionColor,
     matchedRule
   };
 };

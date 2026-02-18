@@ -14,6 +14,7 @@ import { CommunicationWidget } from '../components/widgets/CommunicationWidget';
 interface CustomerDetailViewProps { 
   customer: Customer; 
   behavior: any; 
+  aiStrategy: AiStrategy | null;
   isAdmin: boolean; 
   onBack: () => void; 
   onAi: () => Promise<AiStrategy | null>;
@@ -30,7 +31,7 @@ interface CustomerDetailViewProps {
 }
 
 export const CustomerDetailView: React.FC<CustomerDetailViewProps> = ({ 
-  customer, behavior, isAdmin, onBack, onAi, onDeleteTransaction, onEditTransaction,
+  customer, behavior, aiStrategy, isAdmin, onBack, onAi, onDeleteTransaction, onEditTransaction,
   onEditProfile, onEnrich, onUpdateDeepvue, callLogs, whatsappLogs, onAddEntry, onShareLink
 }) => {
   const [activeTab, setActiveTab] = useState<'ledger' | 'forensics' | 'cortex'>('ledger');

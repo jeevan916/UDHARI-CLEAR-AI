@@ -5,15 +5,22 @@ import { Customer, GradeRule, CommunicationLog } from '../types';
 import { formatCurrency, analyzeCustomerBehavior } from '../utils/debtUtils';
 
 export const CustomerListView: React.FC<{ 
-  customers: Customer[]; onView: (id: string) => void; gradeRules: GradeRule[]; callLogs: CommunicationLog[] 
-}> = ({ customers, onView, gradeRules, callLogs }) => {
-  const [search, setSearch] = useState('');
-  const [filter, setFilter] = useState('all');
+  customers: Customer[]; 
+  onView: (id: string) => void; 
+  gradeRules: GradeRule[]; 
+  callLogs: CommunicationLog[];
+  searchTerm: string;
+  setSearchTerm: (val: string) => void;
+  filterGrade: string;
+  setFilterGrade: (val: string) => void;
+  templates: any[];
+  onAddCustomer: () => void;
+}> = ({ customers, onView, gradeRules, callLogs, searchTerm, setSearchTerm, filterGrade, setFilterGrade, onAddCustomer }) => {
 
   const filtered = customers.filter(c => {
     const b = analyzeCustomerBehavior(c, gradeRules, callLogs);
-    const matchesSearch = c.name.toLowerCase().includes(search.toLowerCase()) || c.phone.includes(search);
-    const matchesGrade = filter === 'all' || b.calculatedGrade === filter;
+    const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase()) || c.phone.includes(searchTerm);
+    const matchesGrade = filterGrade === 'all' || b.calculatedGrade === filterGrade;
     return matchesSearch && matchesGrade;
   });
 
@@ -26,22 +33,25 @@ export const CustomerListView: React.FC<{
             <input 
               type="text" 
               placeholder="Search Entity Name, Phone, Code..." 
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold outline-none focus:ring-4 focus:ring-indigo-500/5 transition-all text-sm uppercase tracking-widest placeholder:text-slate-300"
             />
           </div>
           <div className="flex gap-2 items-center">
             {['all', 'A', 'B', 'C', 'D'].map(g => (
               <button 
-                key={g} onClick={() => setFilter(g)}
-                className={`px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${filter === g ? 'bg-slate-900 text-white border-slate-900 shadow-lg' : 'bg-white text-slate-400 border-slate-100 hover:bg-slate-50'}`}
+                key={g} onClick={() => setFilterGrade(g)}
+                className={`px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${filterGrade === g ? 'bg-slate-900 text-white border-slate-900 shadow-lg' : 'bg-white text-slate-400 border-slate-100 hover:bg-slate-50'}`}
               >
                 {g.toUpperCase()}
               </button>
             ))}
             <div className="w-px h-8 bg-slate-200 mx-2"></div>
-            <button className="px-6 py-3 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
+            <button 
+              onClick={onAddCustomer}
+              className="px-6 py-3 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2"
+            >
               <UserPlus size={14}/> Onboard
             </button>
           </div>

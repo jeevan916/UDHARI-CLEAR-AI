@@ -6,6 +6,7 @@ import { GoogleGenAI, Type } from "@google/genai";
 import dotenv from 'dotenv';
 import mysql from 'mysql2/promise';
 import fs from 'fs';
+import { createServer as createViteServer } from 'vite';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -75,7 +76,7 @@ const app = express();
 app.use(cors() as any);
 app.use(express.json() as any);
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY as string });
 
 let pool: mysql.Pool;
 
@@ -142,53 +143,147 @@ async function bootSystem() {
       SYSTEM_IDENTITY.database_structure = cols;
     } catch (e) {}
   }
+
+  // --- API ROUTES ---
+
+  app.get('/api/system/health', (req, res) => res.json(SYSTEM_IDENTITY));
+
+  app.post('/api/auth/login', async (req: any, res: any) => {
+    const { email, password } = req.body;
+    if ((email === 'admin' && password === 'admin') || (email === 'matrixjeevan@gmail.com' && password === 'admin123')) {
+      return res.json({ id: 'usr_root', name: 'Root Admin', email, role: 'admin' });
+    }
+    res.status(401).json({ error: "Access Restricted" });
+  });
+
+  app.get('/api/customers', async (req, res) => {
+    if (SYSTEM_IDENTITY.db_health !== "CONNECTED") return res.json([]);
+    try {
+      const [rows] = await pool.execute('SELECT * FROM customers ORDER BY name ASC');
+      res.json(rows);
+    } catch (e) { res.status(500).json({ error: "DB_ERROR" }); }
+  });
+
+  app.post('/api/kernel/reason', async (req: any, res: any) => {
+    try {
+      const response = await ai.models.generateContent({
+        model: "gemini-3-pro-preview",
+        contents: `Analyze Credit Risk for Jeweller Customer: ${JSON.stringify(req.body.customerData)}. Output JSON.`,
+        config: { 
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              risk_score: { type: Type.NUMBER },
+              risk_level: { type: Type.STRING },
+              analysis: { type: Type.STRING },
+              next_step: { type: Type.STRING }
+            },
+            required: ["risk_score", "risk_level", "analysis", "next_step"]
+          }
+        }
+      });
+      res.json(JSON.parse(response.text || '{}'));
+    } catch (err) { res.status(500).json({ error: "AI_OFFLINE" }); }
+  });
+
+  app.get('/api/kernel/status', (req, res) => res.json({ nodeId: SYSTEM_IDENTITY.node_id, version: "9.0.0", status: "ONLINE" }));
+  app.get('/api/kernel/logs', (req, res) => res.json(SYSTEM_IDENTITY.debug_logs));
+
+  app.post('/api/kernel/optimize-grades', async (req: any, res: any) => {
+    try {
+      const response = await ai.models.generateContent({
+        model: "gemini-3-pro-preview",
+        contents: `Optimize Grade Rules for Jeweller Portfolio. Stats: ${JSON.stringify(req.body.stats)}. Output JSON array of GradeRule objects.`,
+        config: { responseMimeType: "application/json" }
+      });
+      res.json(JSON.parse(response.text || '[]'));
+    } catch (err) { res.status(500).json({ error: "AI_OFFLINE" }); }
+  });
+
+  app.post('/api/kernel/smart-template', async (req: any, res: any) => {
+    try {
+      const response = await ai.models.generateContent({
+        model: "gemini-3-pro-preview",
+        contents: `Generate Smart Communication Template. Intent: ${req.body.intent}, Category: ${req.body.category}. Output JSON with content, suggestedButtons, and suggestedName.`,
+        config: { responseMimeType: "application/json" }
+      });
+      res.json(JSON.parse(response.text || '{}'));
+    } catch (err) { res.status(500).json({ error: "AI_OFFLINE" }); }
+  });
+
+  app.post('/api/kernel/optimize-content', async (req: any, res: any) => {
+    try {
+      const response = await ai.models.generateContent({
+        model: "gemini-3-pro-preview",
+        contents: `Optimize Template Content. Content: ${req.body.content}, Context: ${req.body.context}. Output JSON with optimizedContent.`,
+        config: { responseMimeType: "application/json" }
+      });
+      res.json(JSON.parse(response.text || '{}'));
+    } catch (err) { res.status(500).json({ error: "AI_OFFLINE" }); }
+  });
+
+  app.get('/api/ledger/global', async (req: any, res: any) => {
+    if (SYSTEM_IDENTITY.db_health !== "CONNECTED") {
+       return res.json({ data: [], meta: { total: 0, page: 1, totalPages: 0, limit: 50 } });
+    }
+    try {
+      const { page = 1, limit = 50, search, startDate, endDate } = req.query;
+      const offset = (Number(page) - 1) * Number(limit);
+      
+      let query = 'SELECT t.*, c.name as customerName, c.uniquePaymentCode as upc FROM transactions t JOIN customers c ON t.customerId = c.id';
+      const params: any[] = [];
+      
+      if (search || startDate || endDate) {
+        query += ' WHERE';
+        const conditions = [];
+        if (search) {
+          conditions.push('(c.name LIKE ? OR c.uniquePaymentCode LIKE ? OR t.description LIKE ?)');
+          params.push(`%${search}%`, `%${search}%`, `%${search}%`);
+        }
+        if (startDate) {
+          conditions.push('t.date >= ?');
+          params.push(startDate);
+        }
+        if (endDate) {
+          conditions.push('t.date <= ?');
+          params.push(endDate);
+        }
+        query += ' ' + conditions.join(' AND ');
+      }
+      
+      query += ' ORDER BY t.date DESC LIMIT ? OFFSET ?';
+      params.push(Number(limit), offset);
+      
+      const [rows] = await pool.execute(query, params);
+      const [countRows]: any = await pool.execute('SELECT COUNT(*) as total FROM transactions');
+      
+      res.json({
+        data: rows,
+        meta: {
+          total: countRows[0]?.total || 0,
+          page: Number(page),
+          totalPages: Math.ceil((countRows[0]?.total || 0) / Number(limit)),
+          limit: Number(limit)
+        }
+      });
+    } catch (e) { res.status(500).json({ error: "DB_ERROR" }); }
+  });
+
+  // Vite middleware for development
+  if (process.env.NODE_ENV !== "production") {
+    const vite = await createViteServer({
+      server: { middlewareMode: true },
+      appType: "spa",
+    });
+    app.use(vite.middlewares);
+  } else {
+    app.use(express.static(path.join(__dirname, 'dist')));
+    app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'dist', 'index.html')));
+  }
+
+  const PORT = process.env.PORT || 3000;
+  app.listen(PORT, () => console.log(`[CORE] Enterprise server active on port ${PORT}`));
 }
 
-// --- API ROUTES ---
-
-app.get('/api/system/health', (req, res) => res.json(SYSTEM_IDENTITY));
-
-app.post('/api/auth/login', async (req: any, res: any) => {
-  const { email, password } = req.body;
-  if ((email === 'admin' && password === 'admin') || (email === 'matrixjeevan@gmail.com' && password === 'admin123')) {
-    return res.json({ id: 'usr_root', name: 'Root Admin', email, role: 'admin' });
-  }
-  res.status(401).json({ error: "Access Restricted" });
-});
-
-app.get('/api/customers', async (req, res) => {
-  if (SYSTEM_IDENTITY.db_health !== "CONNECTED") return res.json([]);
-  try {
-    const [rows] = await pool.execute('SELECT * FROM customers ORDER BY name ASC');
-    res.json(rows);
-  } catch (e) { res.status(500).json({ error: "DB_ERROR" }); }
-});
-
-app.post('/api/kernel/reason', async (req: any, res: any) => {
-  try {
-    const response = await ai.models.generateContent({
-      model: "gemini-3-pro-preview",
-      contents: `Analyze Credit Risk for Jeweller Customer: ${JSON.stringify(req.body.customerData)}. Output JSON.`,
-      config: { 
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            risk_score: { type: Type.NUMBER },
-            risk_level: { type: Type.STRING },
-            analysis: { type: Type.STRING },
-            next_step: { type: Type.STRING }
-          },
-          required: ["risk_score", "risk_level", "analysis", "next_step"]
-        }
-      }
-    });
-    res.json(JSON.parse(response.text || '{}'));
-  } catch (err) { res.status(500).json({ error: "AI_OFFLINE" }); }
-});
-
-app.use(express.static(path.join(__dirname, 'dist')));
-app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'dist', 'index.html')));
-
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`[CORE] Enterprise server active on port ${PORT}`));
+bootSystem();
