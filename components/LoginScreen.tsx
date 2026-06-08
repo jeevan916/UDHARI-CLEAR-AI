@@ -100,7 +100,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
   };
 
   return (
-    <div className="min-h-screen flex bg-slate-950">
+    <div className="min-h-[100dvh] flex bg-slate-950">
       <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-indigo-950">
         <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1573408301185-9146fe634ad0?q=80&w=1920&auto=format&fit=crop')] bg-cover bg-center opacity-20 mix-blend-overlay"></div>
         <div className="absolute inset-0 bg-gradient-to-br from-[#010409]/90 to-slate-950/90"></div>

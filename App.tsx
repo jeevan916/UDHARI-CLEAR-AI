@@ -45,7 +45,7 @@ const App: React.FC = () => {
   const showGlobalHeader = state.activeView !== 'view-customer';
 
   return (
-    <div className="flex h-screen bg-[#F8FAFC] text-slate-900 overflow-hidden font-sans">
+    <div className="flex h-[100dvh] bg-[#F8FAFC] text-slate-900 overflow-hidden font-sans">
       <Sidebar 
         activeView={state.activeView} 
         setActiveView={actions.setActiveView} 
@@ -64,6 +64,7 @@ const App: React.FC = () => {
             user={state.user} 
             isAdmin={state.isAdmin} 
             onMenuToggle={() => actions.setIsMobileMenuOpen(true)}
+            systemLogs={state.systemLogs}
           />
         )}
 
@@ -115,7 +116,7 @@ const App: React.FC = () => {
                 onAi={actions.handleAiInquiry}
                 onAddEntry={(defaults: any) => { 
                    actions.setEditingTransaction(null); 
-                   if (defaults) actions.setEntryDefaults(defaults);
+                   actions.setEntryDefaults(defaults || null);
                    actions.setIsEntryModalOpen(true); 
                 }}
                 onEditProfile={() => actions.setIsEditModalOpen(true)}

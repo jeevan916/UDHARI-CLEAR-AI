@@ -16,12 +16,12 @@ export const DashboardView: React.FC<{
   return (
     <div className="space-y-8 animate-in fade-in duration-1000 max-w-[1600px] mx-auto pb-24">
       
-      <div className="bg-[#0d1117] text-white p-12 rounded-[4rem] shadow-[0_25px_50px_-12px_rgba(0,0,0,0.5)] border border-white/5 relative overflow-hidden flex flex-col md:flex-row justify-between items-center gap-10">
+      <div className="bg-[#0d1117] text-white p-6 sm:p-8 md:p-12 rounded-[2.5rem] md:rounded-[4rem] shadow-2xl border border-white/5 relative overflow-hidden flex flex-col md:flex-row justify-between items-start md:items-center gap-8 md:gap-10">
         <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-30 pointer-events-none"></div>
         <div className="relative z-10">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_15px_#10b981]"></div>
-            <span className="text-[11px] font-black uppercase tracking-[0.6em] text-emerald-400">Sanghavi Jewellers Enterprise Core</span>
+            <span className="text-[9px] md:text-[11px] font-black uppercase tracking-[0.2em] md:tracking-[0.6em] text-emerald-400">Sanghavi Jewellers Enterprise Core</span>
           </div>
           <h2 className="text-5xl md:text-7xl font-black uppercase tracking-tighter leading-none mb-4">
             Recovery <span className="text-blue-500">Center</span>
@@ -52,46 +52,46 @@ export const DashboardView: React.FC<{
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-8">
-        <div className="bg-white p-12 rounded-[3.5rem] shadow-2xl border border-slate-100 group hover:border-blue-300 transition-all relative overflow-hidden">
+        <div className="bg-white p-6 md:p-12 rounded-[2rem] md:rounded-[3.5rem] shadow-2xl border border-slate-100 group hover:border-blue-300 transition-all relative overflow-hidden">
            <div className="absolute -bottom-6 -right-6 text-slate-50 opacity-10 group-hover:opacity-20 transition-opacity"><Landmark size={180}/></div>
-           <p className="text-[12px] font-black uppercase text-slate-400 tracking-[0.2em] mb-8">Portfolio Exposure</p>
-           <h3 className="text-5xl font-black text-slate-900 tracking-tighter tabular-nums mb-6">{formatCurrency(totalLiability)}</h3>
+           <p className="text-[12px] font-black uppercase text-slate-400 tracking-[0.2em] mb-4 md:mb-8">Portfolio Exposure</p>
+           <h3 className="text-4xl md:text-5xl font-black text-slate-900 tracking-tighter tabular-nums mb-4 md:mb-6">{formatCurrency(totalLiability)}</h3>
            <div className="flex items-center gap-2 text-rose-500 font-black text-[10px] uppercase tracking-widest bg-rose-50 w-fit px-4 py-1.5 rounded-full border border-rose-100">
              <TrendingUp size={14}/> Risk Analysis Active
            </div>
         </div>
 
-        <div className="bg-white p-12 rounded-[3.5rem] shadow-2xl border border-slate-100 group hover:border-amber-300 transition-all relative overflow-hidden">
+        <div className="bg-white p-6 md:p-12 rounded-[2rem] md:rounded-[3.5rem] shadow-2xl border border-slate-100 group hover:border-amber-300 transition-all relative overflow-hidden">
            <div className="absolute -bottom-6 -right-6 text-slate-50 opacity-10 group-hover:opacity-20 transition-opacity"><Zap size={180}/></div>
-           <p className="text-[12px] font-black uppercase text-slate-400 tracking-[0.2em] mb-8">Gold Inventory</p>
-           <h3 className="text-5xl font-black text-amber-600 tracking-tighter tabular-nums mb-6">{formatGold(totalGold)}</h3>
+           <p className="text-[12px] font-black uppercase text-slate-400 tracking-[0.2em] mb-4 md:mb-8">Gold Inventory</p>
+           <h3 className="text-4xl md:text-5xl font-black text-amber-600 tracking-tighter tabular-nums mb-4 md:mb-6">{formatGold(totalGold)}</h3>
            <div className="flex items-center gap-2 text-amber-600 font-black text-[10px] uppercase tracking-widest bg-amber-50 w-fit px-4 py-1.5 rounded-full border border-amber-100">
              Fine Gold Ledger
            </div>
         </div>
 
-        <div className="bg-[#010409] p-12 rounded-[3.5rem] shadow-[0_35px_60px_-15px_rgba(0,0,0,0.3)] border border-white/5 group relative overflow-hidden">
+        <div className="bg-[#010409] p-6 md:p-12 rounded-[2rem] md:rounded-[3.5rem] shadow-2xl border border-white/5 group relative overflow-hidden">
            <div className="absolute top-0 right-0 p-8 text-white/5"><Globe size={100}/></div>
-           <p className="text-[12px] font-black uppercase text-slate-500 tracking-[0.2em] mb-8">Active Entities</p>
-           <h3 className="text-5xl font-black text-white tracking-tighter tabular-nums mb-6">{customers.length}</h3>
+           <p className="text-[12px] font-black uppercase text-slate-500 tracking-[0.2em] mb-4 md:mb-8">Active Entities</p>
+           <h3 className="text-4xl md:text-5xl font-black text-white tracking-tighter tabular-nums mb-4 md:mb-6">{customers.length}</h3>
            <p className="text-[10px] font-bold text-blue-500 uppercase tracking-[0.3em]">Production Cluster</p>
         </div>
 
-        <div className="bg-blue-600 p-12 rounded-[3.5rem] shadow-2xl relative overflow-hidden group">
+        <div className="bg-blue-600 p-6 md:p-12 rounded-[2rem] md:rounded-[3.5rem] shadow-2xl relative overflow-hidden group">
            <div className="absolute -bottom-4 -right-4 text-white/20"><ShieldCheck size={160}/></div>
-           <p className="text-[12px] font-black uppercase text-blue-100 tracking-[0.2em] mb-8">System Integrity</p>
-           <h3 className="text-3xl font-black text-white tracking-tight mb-6">AES_256_ACTIVE</h3>
+           <p className="text-[12px] font-black uppercase text-blue-100 tracking-[0.2em] mb-4 md:mb-8">System Integrity</p>
+           <h3 className="text-2xl md:text-3xl font-black text-white tracking-tight mb-4 md:mb-6">AES_256_ACTIVE</h3>
            <div className="flex items-center gap-2 text-white font-black text-[10px] uppercase tracking-widest bg-white/20 w-fit px-4 py-1.5 rounded-full border border-white/20">
              Encrypted Protocol
            </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 h-[650px]">
-        <div className="lg:col-span-7 bg-white rounded-[4rem] shadow-2xl border border-slate-100 overflow-hidden flex flex-col">
-           <div className="p-12 border-b border-slate-50 flex justify-between items-center bg-slate-50/30">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 h-auto lg:h-[650px]">
+        <div className="lg:col-span-7 bg-white rounded-[2rem] md:rounded-[4rem] shadow-2xl border border-slate-100 overflow-hidden flex flex-col h-[500px] lg:h-auto">
+           <div className="p-6 md:p-12 border-b border-slate-50 flex flex-col md:flex-row justify-between items-start md:items-center bg-slate-50/30 gap-4">
               <div>
-                 <h3 className="text-2xl font-black uppercase tracking-tighter text-slate-900">Entity Master Ledger</h3>
+                 <h3 className="text-xl md:text-2xl font-black uppercase tracking-tighter text-slate-900">Entity Master Ledger</h3>
                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Centralized Records</p>
               </div>
               <button className="px-8 py-3 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl transition-transform active:scale-95">Refresh Core</button>
@@ -116,7 +116,7 @@ export const DashboardView: React.FC<{
               ))}
            </div>
         </div>
-        <div className="lg:col-span-5 h-full relative group">
+        <div className="lg:col-span-5 h-[500px] lg:h-auto relative group">
            <TerminalConsole logs={systemLogs} />
         </div>
       </div>

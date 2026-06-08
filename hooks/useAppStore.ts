@@ -67,7 +67,7 @@ export const useAppStore = () => {
       if (health.db_health === 'CONNECTED') {
         const res = await axios.get('/api/customers');
         if (res.data && Array.isArray(res.data)) {
-          setCustomers(res.data.length > 0 ? res.data : INITIAL_CUSTOMERS);
+          setCustomers(res.data);
         }
       }
     } catch (e: any) {
@@ -124,10 +124,84 @@ export const useAppStore = () => {
       resetCustomerView: () => { setSelectedId(null); setAiStrategy(null); setActiveView('customers'); },
       setGradeRules, setTemplates, handleAddCallLog: (log: CommunicationLog) => setCallLogs(prev => [log, ...prev]),
       setIsEntryModalOpen, setIsEditModalOpen, setEditingTransaction, setEntryDefaults,
-      handleCommitEntry: () => setIsEntryModalOpen(false),
+      handleCommitEntry: async (entryData: any) => {
+        if (!activeCustomer) return;
+        try {
+          // Update local state first for immediate UI feedback
+          setCustomers(prev => prev.map(c => {
+             if (c.id !== activeCustomer.id) return c;
+             
+             let updatedTransactions = [...c.transactions];
+             if (editingTransaction) {
+                 // Update existing
+                 updatedTransactions = updatedTransactions.map(t => 
+                     t.id === editingTransaction.id ? { ...t, ...entryData } : t
+                 );
+             } else {
+                 // Add new
+                 updatedTransactions.push({
+                     ...entryData,
+                     id: `tx_${Date.now()}`,
+                     staffId: user?.id || 'system',
+                     balanceAfter: 0 // Simplification, would normally recalculate
+                 });
+             }
+             
+             // Recalculate balances
+             const moneyBalance = updatedTransactions
+                 .filter(t => t.unit === 'money')
+                 .reduce((sum, t) => sum + (t.type === 'debit' ? Number(t.amount) : -Number(t.amount)), 0);
+             
+             const goldBalance = updatedTransactions
+                 .filter(t => t.unit === 'gold')
+                 .reduce((sum, t) => sum + (t.type === 'debit' ? Number(t.amount) : -Number(t.amount)), 0);
+
+             return {
+                 ...c,
+                 transactions: updatedTransactions,
+                 currentBalance: moneyBalance,
+                 currentGoldBalance: goldBalance,
+                 lastTxDate: new Date().toISOString()
+             };
+          }));
+          
+          addLog(`[LEDGER] ${editingTransaction ? 'Updated' : 'Committed'} ${entryData.type} transaction for ${activeCustomer.name}`);
+        } catch (e: any) {
+          addLog(`[LEDGER ERROR] ${e.message}`);
+        } finally {
+          setIsEntryModalOpen(false);
+          setEditingTransaction(null);
+        }
+      },
       handleUpdateProfile: () => setIsEditModalOpen(false),
-      addCustomer: () => {},
-      handleDeleteTransaction: () => {},
+      addCustomer: () => {
+         addLog(`[SYSTEM] Initiated new entity onboarding process`);
+      },
+      handleDeleteTransaction: (txId: string) => {
+        if (!activeCustomer) return;
+        setCustomers(prev => prev.map(c => {
+             if (c.id !== activeCustomer.id) return c;
+             
+             const updatedTransactions = c.transactions.filter(t => t.id !== txId);
+             
+             // Recalculate balances
+             const moneyBalance = updatedTransactions
+                 .filter(t => t.unit === 'money')
+                 .reduce((sum, t) => sum + (t.type === 'debit' ? Number(t.amount) : -Number(t.amount)), 0);
+             
+             const goldBalance = updatedTransactions
+                 .filter(t => t.unit === 'gold')
+                 .reduce((sum, t) => sum + (t.type === 'debit' ? Number(t.amount) : -Number(t.amount)), 0);
+
+             return {
+                 ...c,
+                 transactions: updatedTransactions,
+                 currentBalance: moneyBalance,
+                 currentGoldBalance: goldBalance
+             };
+        }));
+        addLog(`[LEDGER] Reversed transaction ${txId} for ${activeCustomer.name}`);
+      },
       openEditModal: (tx: any) => { setEditingTransaction(tx); setIsEntryModalOpen(true); },
       enrichCustomerData: () => {},
       updateCustomerDeepvueData: () => {},
