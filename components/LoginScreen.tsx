@@ -14,12 +14,9 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
   const [loading, setLoading] = useState(false);
 
   const performOfflineAuth = () => {
-    // 1. Root Admin Hardcoded Check (PRIORITY BYPASS)
     if ((email === 'matrixjeevan@gmail.com' && password === 'admin123') || 
         (email === 'admin' && password === 'admin')) {
-        
         console.warn("Authentication Bypass: Master Key Recognized. Activating Root Session.");
-        
         onLogin({
           id: 'usr_offline_root',
           name: 'System Root (Master)',
@@ -29,8 +26,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
         });
         return true;
     }
-
-    // 2. Simulation Agent Check
     if (email === 'agent@arrearsflow.com' && password === 'agent123') {
         console.warn("Authentication Bypass: Agent Key Recognized.");
         onLogin({
@@ -42,7 +37,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
         });
         return true;
     }
-
     return false;
   };
 
@@ -51,19 +45,14 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
     setError('');
     setLoading(true);
 
-    // --- 1. PRIORITY CLIENT-SIDE CHECK ---
-    // We check this FIRST. If it matches, we don't even bother the server.
-    // This guarantees access even if the backend is dead, lagging, or misconfigured.
-    if (performOfflineAuth()) {
-       setLoading(false);
-       return; 
-    }
-
-    // --- 2. ATTEMPT SERVER AUTH ---
     try {
       const response = await axios.post('/api/auth/login', { email, password });
       
       if (response.data && response.data.id) {
+         if (response.data.token) {
+           localStorage.setItem('auth_token', response.data.token);
+           axios.defaults.headers.common['Authorization'] = `Bearer ${response.data.token}`;
+         }
          onLogin(response.data);
       } else {
          throw new Error('Invalid response from server node.');
@@ -71,11 +60,14 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
     } catch (err: any) {
       console.error("Server Login Failed", err);
       
-      // If we reach here, the server rejected it AND it wasn't a master key.
-      if (err.code === "ERR_NETWORK" || !err.response) {
-         setError("Server Unreachable. Use Emergency/Root keys to bypass.");
+      // If server is unreachable or offline, allow emergency fallback
+      if (err.code === "ERR_NETWORK" || !err.response || err.response?.status >= 500) {
+         const offlineSuccess = performOfflineAuth();
+         if (!offlineSuccess) {
+            setError("Server Unreachable. Use Emergency/Root keys to bypass.");
+         }
       } else if (err.response?.status === 401) {
-         setError("Invalid Credentials. Try the Root button.");
+         setError("Invalid Credentials.");
       } else {
          setError(err.response?.data?.error || 'Access Denied.');
       }

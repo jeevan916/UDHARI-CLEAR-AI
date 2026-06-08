@@ -3,6 +3,12 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import './index.css';
+import axios from 'axios';
+
+const token = localStorage.getItem('auth_token');
+if (token) {
+  axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+}
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
